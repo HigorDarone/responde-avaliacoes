@@ -1,0 +1,30 @@
+# Segredos — nunca commitar
+.env
+.env.*
+!.env.example
+
+# Banco local
+data/*.db
+data/*.db-journal
+
+# Mídia baixada das avaliações
+data/media/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+build/
+dist/
+
+# Editor / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Configuração local do Claude Code
+.claude/settings.local.json

@@ -1,0 +1,145 @@
+{
+  "lojas": [
+    {
+      "shop_id": 100001,
+      "nome": "Loja Demo 3D",
+      "avaliacoes": [
+        {
+          "comment_id": 9000001,
+          "item_id": 5001,
+          "produto_nome": "Vaso Geométrico Low Poly 15cm",
+          "estrelas": 5,
+          "texto": "Ficou lindo na minha estante! Acabamento muito bom e chegou super rápido.",
+          "comprador": "mari.souza",
+          "criado_em": "2026-10-28T14:12:00-03:00",
+          "midias": []
+        },
+        {
+          "comment_id": 9000002,
+          "item_id": 5002,
+          "produto_nome": "Suporte de Headset Gamer",
+          "estrelas": 5,
+          "texto": "",
+          "comprador": "j***o",
+          "criado_em": "2026-10-28T18:40:00-03:00",
+          "midias": []
+        },
+        {
+          "comment_id": 9000003,
+          "item_id": 5003,
+          "produto_nome": "Luminária Lua 3D 12cm",
+          "estrelas": 5,
+          "texto": "Olha como ficou no quarto da minha filha, ela amou!",
+          "comprador": "carla_m",
+          "criado_em": "2026-10-29T09:05:00-03:00",
+          "midias": [
+            {"tipo": "foto", "url": "https://example.com/mock/9000003-1.jpg"}
+          ]
+        },
+        {
+          "comment_id": 9000004,
+          "item_id": 5001,
+          "produto_nome": "Vaso Geométrico Low Poly 15cm",
+          "estrelas": 4,
+          "texto": "Gostei bastante, mas dá pra ver umas linhas na lateral do vaso. É assim mesmo?",
+          "comprador": "pedro.alves",
+          "criado_em": "2026-10-29T11:30:00-03:00",
+          "midias": [
+            {"tipo": "foto", "url": "https://example.com/mock/9000004-1.jpg"}
+          ]
+        },
+        {
+          "comment_id": 9000005,
+          "item_id": 5004,
+          "produto_nome": "Miniatura Dragão Articulado 30cm",
+          "estrelas": 1,
+          "texto": "Chegou com a cauda quebrada em dois pedaços. A caixa estava amassada.",
+          "comprador": "lucas_rpg",
+          "criado_em": "2026-10-30T16:22:00-03:00",
+          "midias": [
+            {"tipo": "foto", "url": "https://example.com/mock/9000005-1.jpg"},
+            {"tipo": "foto", "url": "https://example.com/mock/9000005-2.jpg"}
+          ]
+        },
+        {
+          "comment_id": 9000006,
+          "item_id": 5002,
+          "produto_nome": "Suporte de Headset Gamer",
+          "estrelas": 2,
+          "texto": "A base veio torta, o suporte fica balançando na mesa.",
+          "comprador": "rafa.games",
+          "criado_em": "2026-10-30T20:01:00-03:00",
+          "midias": [
+            {"tipo": "foto", "url": "https://example.com/mock/9000006-1.jpg"}
+          ]
+        },
+        {
+          "comment_id": 9000007,
+          "item_id": 5005,
+          "produto_nome": "Organizador de Mesa Modular",
+          "estrelas": 3,
+          "texto": "Produto bom, mas demorou quase 3 semanas pra chegar.",
+          "comprador": "ana.paula",
+          "criado_em": "2026-10-31T10:15:00-03:00",
+          "midias": []
+        },
+        {
+          "comment_id": 9000008,
+          "item_id": 5003,
+          "produto_nome": "Luminária Lua 3D 12cm",
+          "estrelas": 2,
+          "texto": "Pedi a de 12cm e veio uma bem menor, olha no vídeo do lado da régua.",
+          "comprador": "thiago_s",
+          "criado_em": "2026-10-31T13:48:00-03:00",
+          "midias": [
+            {"tipo": "video", "url": "https://example.com/mock/9000008-1.mp4"}
+          ]
+        },
+        {
+          "comment_id": 9000009,
+          "item_id": 5004,
+          "produto_nome": "Miniatura Dragão Articulado 30cm",
+          "estrelas": 4,
+          "texto": "Muito legal! Dá pra pintar com tinta acrílica ou precisa de primer antes?",
+          "comprador": "bia.artes",
+          "criado_em": "2026-11-01T08:20:00-03:00",
+          "midias": []
+        },
+        {
+          "comment_id": 9000010,
+          "item_id": 5005,
+          "produto_nome": "Organizador de Mesa Modular",
+          "estrelas": 3,
+          "texto": "É ok. Cumpre o que promete, nada demais.",
+          "comprador": "m***s",
+          "criado_em": "2026-11-01T15:33:00-03:00",
+          "midias": []
+        },
+        {
+          "comment_id": 9000011,
+          "item_id": 5002,
+          "produto_nome": "Suporte de Headset Gamer",
+          "estrelas": 1,
+          "texto": "Quebrou na primeira semana de uso. Quero meu dinheiro de volta.",
+          "comprador": "gustavo.r",
+          "criado_em": "2026-11-02T19:10:00-03:00",
+          "midias": [
+            {"tipo": "foto", "url": "https://example.com/mock/9000011-1.jpg"},
+            {"tipo": "video", "url": "https://example.com/mock/9000011-2.mp4"}
+          ]
+        },
+        {
+          "comment_id": 9000012,
+          "item_id": 5001,
+          "produto_nome": "Vaso Geométrico Low Poly 15cm",
+          "estrelas": 5,
+          "texto": "Segunda compra, qualidade sempre top.",
+          "comprador": "fernanda.l",
+          "criado_em": "2026-10-20T12:00:00-03:00",
+          "midias": [],
+          "resposta": "Que bom te ver de novo, Fernanda! Obrigado pela confiança no vaso."
+        }
+      ]
+    }
+  ]
+}
