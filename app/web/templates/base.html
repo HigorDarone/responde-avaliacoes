@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Responde Avaliações{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Inter+Tight:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo__linha">
+      <a class="marca" href="/">
+        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M5 7.5A3.5 3.5 0 0 1 8.5 4h15A3.5 3.5 0 0 1 27 7.5v11a3.5 3.5 0 0 1-3.5 3.5H14l-6 5v-5h0.5A3.5 3.5 0 0 1 5 18.5z" fill="currentColor"/>
+          <path d="M11 13.5l3.2 3 6.8-6.5" stroke="#fefdf5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        responde
+      </a>
+
+      <nav class="menu" aria-label="Principal">
+        {% set links_menu = [
+          ("fila", "/fila", "Fila", False),
+          ("painel", "#", "Painel", True),
+          ("historico", "#", "Histórico", True),
+          ("personalizacao", "#", "Personalização", True),
+          ("shopee", "#", "Conexão Shopee", True),
+        ] %}
+        {% for chave, href, nome, em_breve in links_menu %}
+          <a href="{{ href }}"
+             {% if chave == pagina %}aria-current="page"{% endif %}
+             {% if em_breve %}class="em-breve" aria-disabled="true" title="Em breve"{% endif %}>
+            {{ nome }}{% if em_breve %} <span class="mono">em breve</span>{% endif %}
+          </a>
+        {% endfor %}
+      </nav>
+
+      {% if loja %}{% include "partials/interruptor.html" %}{% endif %}
+    </div>
+  </header>
+
+  <main class="pagina">
+    <div class="container">
+      {% block conteudo %}{% endblock %}
+    </div>
+  </main>
+</body>
+</html>

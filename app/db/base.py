@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
 
@@ -19,10 +20,16 @@ def make_engine(url: str) -> Engine:
         return create_engine(url)
 
     database = make_url(url).database
-    if database and database != ":memory:":
+    em_memoria = not database or database == ":memory:"
+    if not em_memoria:
         Path(database).parent.mkdir(parents=True, exist_ok=True)
 
-    engine = create_engine(url, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        url,
+        connect_args={"check_same_thread": False},
+        # Em memória, todas as threads (ex.: servidor web nos testes) precisam do mesmo banco.
+        poolclass=StaticPool if em_memoria else None,
+    )
 
     # SQLite só respeita chaves estrangeiras com este PRAGMA.
     @event.listens_for(engine, "connect")

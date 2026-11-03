@@ -6,6 +6,7 @@
     python -m app robo               liga o robô: um ciclo agora e depois a cada 30 minutos
     python -m app robo --uma-vez     roda um único ciclo e sai
     python -m app robo --intervalo 10
+    python -m app web                abre o painel em http://localhost:8000
 """
 
 import argparse
@@ -25,7 +26,13 @@ def main(argv: list[str] | None = None) -> None:
     robo = sub.add_parser("robo")
     robo.add_argument("--uma-vez", action="store_true", help="roda um ciclo e sai")
     robo.add_argument("--intervalo", type=int, default=30, help="minutos entre ciclos")
+    web = sub.add_parser("web")
+    web.add_argument("--porta", type=int, default=8000)
     args = parser.parse_args(argv)
+
+    if args.comando == "web":
+        _web(args.porta)
+        return
 
     settings = get_settings()
     init_db()
@@ -41,6 +48,16 @@ def main(argv: list[str] | None = None) -> None:
         _robo(client, args.uma_vez, args.intervalo)
     else:
         _listar(client, analisar=args.comando == "analisar")
+
+
+def _web(porta: int) -> None:
+    import uvicorn
+
+    from app.web.main import create_app
+
+    init_db()
+    print(f"Painel em http://localhost:{porta}  (Ctrl+C para parar)")
+    uvicorn.run(create_app(), host="127.0.0.1", port=porta)
 
 
 def _robo(client, uma_vez: bool, intervalo: int) -> None:

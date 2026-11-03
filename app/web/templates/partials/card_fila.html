@@ -1,0 +1,53 @@
+{% set cat = categorias.get(review.categoria, ("Outro", "")) %}
+<article class="card {{ 'card--revisao' if review.precisa_revisao }}" id="review-{{ review.id }}">
+  <header class="card__topo">
+    <div>
+      <h2 class="card__produto">{{ review.produto_nome }}</h2>
+      <div class="estrelas" aria-label="{{ review.estrelas }} de 5 estrelas">
+        {%- for i in range(5) -%}<span class="{{ '' if i < review.estrelas else 'vazia' }}">★</span>{%- endfor -%}
+      </div>
+    </div>
+    <time class="card__data mono" datetime="{{ review.avaliado_em.isoformat() if review.avaliado_em }}">{{ review.avaliado_em | data_curta }}</time>
+  </header>
+
+  <div class="etiquetas">
+    <span class="pilula mono {{ cat[1] }}">{{ cat[0] }}</span>
+    {% if review.sentimento %}<span class="pilula mono">{{ review.sentimento }}</span>{% endif %}
+    {% if review.gravidade and review.gravidade >= 3 %}<span class="pilula mono pilula--erro">Gravidade {{ review.gravidade }}</span>{% endif %}
+  </div>
+
+  {% if review.texto %}
+    <blockquote class="avaliacao">{{ review.texto }}</blockquote>
+  {% else %}
+    <p class="avaliacao sem-texto">Sem texto</p>
+  {% endif %}
+
+  {% if review.midias %}
+    <div class="midias">
+      {% for m in review.midias %}
+        {% set url = m.url | url_segura %}
+        <a class="midia midia--{{ m.tipo }}" href="{{ url }}" target="_blank" rel="noopener noreferrer"
+           aria-label="Abrir {{ m.tipo }} {{ loop.index }}">
+          <span class="mono">{{ m.tipo }}</span>
+          {% if m.tipo == "foto" and url != "#" %}<img src="{{ url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if review.precisa_revisao %}
+    <p class="alerta"><strong>Precisa de você</strong> {{ review.motivo | sem_prefixo_revisao }}</p>
+  {% endif %}
+
+  <div class="resposta">
+    <label class="mono" for="resposta-{{ review.id }}">Resposta sugerida</label>
+    <textarea id="resposta-{{ review.id }}" name="texto" rows="4">{{ draft.texto_final or draft.texto_ia }}</textarea>
+  </div>
+
+  <div class="card__acoes">
+    <button class="btn btn--primario" disabled>Aprovar e publicar</button>
+    <button class="btn btn--contorno" disabled>Editar</button>
+    <button class="btn btn--texto" disabled>Descartar</button>
+    <span class="card__nota mono">Botões entram na etapa 5b</span>
+  </div>
+</article>

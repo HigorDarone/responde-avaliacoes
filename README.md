@@ -13,7 +13,7 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 - [x] Passo 2 — cliente falso da Shopee (`app/shopee/mock_client.py`) + `data/mock_reviews.json`
 - [x] Passo 3 — análise com o Claude (`app/ai/`)
 - [x] Passo 4 — robô (worker) com a regra de decisão (`app/worker.py`)
-- [ ] Passo 5 — painel web
+- [ ] Passo 5 — painel web (5a feito: layout, fila de aprovação, interruptor)
 - [ ] Passo 6 — cliente real da Shopee
 - [ ] Passo 7 — quadros de vídeo
 
@@ -71,6 +71,13 @@ chega em um ciclo seguinte (normalmente em menos de 1 hora). Para ver o resultad
 use `USE_BATCH_API=false` no `.env`. O robô respeita `LIMITE_AVALIACOES_MES` por loja;
 o que passar do limite fica esperando o mês seguinte.
 
+```powershell
+python -m app web                # painel em http://localhost:8000
+```
+
+Fila de aprovação e interruptor "Respostas automáticas" (ligar pede confirmação;
+desligar é imediato; tudo fica registrado no histórico). Estilo em `referencias/estilo.md`.
+
 > Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
 > para ele ser recriado.
 
@@ -97,6 +104,12 @@ app/
     exemplos.py      # escolhe os exemplos mais parecidos (TF-IDF simples)
     custos.py        # tokens e custo estimado
   worker.py          # robô: buscar -> analisar -> decidir -> publicar ou enfileirar
+  web/
+    main.py          # cria o app FastAPI
+    routes.py        # fila de aprovação, interruptor
+    templates/       # Jinja2 + HTMX
+    static/app.css   # estilo (tokens de referencias/estilo.md)
+referencias/         # referência visual do painel
   shopee/
     base.py          # interface comum (ShopeeClient, ShopeeComment)
     mock_client.py   # cliente falso, lê data/mock_reviews.json

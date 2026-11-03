@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Fila de aprovação · Responde Avaliações{% endblock %}
+
+{% block conteudo %}
+{% if not loja %}
+  <div class="vazio">
+    <span class="pilula mono">Nenhuma loja</span>
+    <h2>Ainda não há loja cadastrada</h2>
+    <p>Rode <code>python -m app robo --uma-vez</code> para criar a loja de exemplo e buscar avaliações.</p>
+  </div>
+{% else %}
+  <section class="titulo">
+    <div class="resumo">
+      <span class="pilula pilula--azul mono">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 1 2 7h3.5L5 11l5-6H6.5z" fill="currentColor"/></svg>
+        Fila de aprovação
+      </span>
+      <span class="pilula mono">{{ loja.nome }}</span>
+    </div>
+    {% if itens %}
+      <h1>{{ itens | length }} {{ 'resposta' if itens | length == 1 else 'respostas' }}<br><span class="apagado">esperando você</span></h1>
+      <p>Confira a resposta sugerida, ajuste se quiser e publique.
+        {% if revisao %}<strong>{{ revisao }}</strong> {{ 'precisa' if revisao == 1 else 'precisam' }} da sua atenção e {{ 'aparece' if revisao == 1 else 'aparecem' }} primeiro.{% endif %}</p>
+    {% else %}
+      <h1>Fila vazia<br><span class="apagado">tudo respondido</span></h1>
+    {% endif %}
+  </section>
+
+  {% if itens %}
+    <div class="fila">
+      {% for review, draft in itens %}{% include "partials/card_fila.html" %}{% endfor %}
+    </div>
+  {% else %}
+    <div class="vazio">
+      <span class="pilula pilula--ok mono">Em dia</span>
+      <h2>Nenhuma avaliação esperando</h2>
+      <p>Quando o robô encontrar avaliações novas que precisem de você, elas aparecem aqui.</p>
+    </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% set ligada = loja.settings.auto_publicar %}
+<div id="interruptor" class="chave {{ 'ligada' if ligada }}"
+     title="{% if ultima_alteracao %}{{ 'Ligadas' if ligada else 'Desligadas' }} por {{ ultima_alteracao.autor }} em {{ ultima_alteracao.criado_em | data_hora }}{% endif %}">
+  <span class="chave__texto">
+    <span class="mono">Respostas automáticas</span>
+    <span class="chave__estado">{{ 'Ligadas' if ligada else 'Desligadas' }}</span>
+  </span>
+
+  {% if ligada %}
+    {# Desligar é imediato, sem confirmação. #}
+    <button class="switch" role="switch" aria-checked="true" aria-label="Desligar respostas automáticas"
+            hx-post="/loja/auto-publicar/desligar" hx-target="#interruptor" hx-swap="outerHTML"></button>
+  {% else %}
+    <button class="switch" role="switch" aria-checked="false" aria-label="Ligar respostas automáticas"
+            onclick="document.getElementById('confirmar-auto').showModal()"></button>
+
+    <dialog id="confirmar-auto" aria-labelledby="confirmar-auto-titulo">
+      <span class="pilula pilula--azul mono">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 1 2 7h3.5L5 11l5-6H6.5z" fill="currentColor"/></svg>
+        Respostas automáticas
+      </span>
+      <h2 id="confirmar-auto-titulo">Ligar as respostas automáticas?</h2>
+      <ul>
+        <li>Avaliações <strong>positivas novas</strong> serão respondidas e publicadas sozinhas.</li>
+        <li>Negativas, neutras e as que precisam de você continuam vindo para a fila.</li>
+        <li>O que já está na fila <strong>não</strong> será publicado.</li>
+        <li>Você pode desligar a qualquer momento, na hora.</li>
+      </ul>
+      <div class="dialog__acoes">
+        <form method="dialog"><button class="btn btn--texto">Cancelar</button></form>
+        <button class="btn btn--primario"
+                hx-post="/loja/auto-publicar/ligar" hx-target="#interruptor" hx-swap="outerHTML">
+          Ligar respostas automáticas
+        </button>
+      </div>
+    </dialog>
+  {% endif %}
+</div>
