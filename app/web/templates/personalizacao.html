@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titulo %}Personalização · Responde Avaliações{% endblock %}
+
+{% block conteudo %}
+{% if not loja %}
+  <div class="vazio">
+    <span class="pilula mono">Nenhuma loja</span>
+    <h2>Ainda não há loja cadastrada</h2>
+    <p>Rode <code>python -m app robo --uma-vez</code> para criar a loja de exemplo.</p>
+  </div>
+{% else %}
+  <section class="titulo">
+    <div class="resumo">
+      <span class="pilula pilula--azul mono">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 1 2 7h3.5L5 11l5-6H6.5z" fill="currentColor"/></svg>
+        Personalização
+      </span>
+      <span class="pilula mono">{{ loja.nome }}</span>
+    </div>
+    <h1>O jeito da sua loja<br><span class="apagado">de responder</span></h1>
+    <p>A IA segue estas regras em toda resposta. Mudou aqui, vale para as próximas análises.</p>
+  </section>
+
+  <nav class="abas" aria-label="Seções da personalização">
+    {% for chave, nome, pronta in abas %}
+      {% if pronta %}
+        <a href="/personalizacao/{{ chave }}" {% if chave == aba %}aria-current="page"{% endif %}>{{ nome }}</a>
+      {% else %}
+        <span class="aba-em-breve" title="Em breve">{{ nome }} <span class="mono">em breve</span></span>
+      {% endif %}
+    {% endfor %}
+  </nav>
+
+  {% include "partials/regras.html" %}
+{% endif %}
+{% endblock %}

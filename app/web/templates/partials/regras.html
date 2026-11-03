@@ -1,0 +1,130 @@
+{% macro opcoes(nome, lista, atual) %}
+  <div class="opcoes" role="radiogroup">
+    {% for valor, rotulo, descricao in lista %}
+      <label class="opcao">
+        <input type="radio" name="{{ nome }}" value="{{ valor }}" {% if valor == atual %}checked{% endif %}>
+        <span class="opcao__corpo">
+          <span class="opcao__nome">{{ rotulo }}</span>
+          <span class="opcao__desc">{{ descricao }}</span>
+        </span>
+      </label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro erro_de(campo) %}{% if form.erros.get(campo) %}<p class="erro-campo" role="alert">{{ form.erros[campo] }}</p>{% endif %}{% endmacro %}
+
+<div id="regras" class="regras">
+  <form id="form-regras" class="regras__form" hx-post="/personalizacao/regras" hx-target="#regras"
+        hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+
+    <section class="bloco">
+      <header class="bloco__topo">
+        <span class="mono muted">01</span>
+        <h2>Tom de voz</h2>
+      </header>
+      <p class="bloco__ajuda">Como a loja soa. Os exemplos mostram a mesma resposta em cada tom.</p>
+      {{ opcoes("tom", tons, form.tom) }}
+      {{ erro_de("tom") }}
+    </section>
+
+    <section class="bloco">
+      <header class="bloco__topo">
+        <span class="mono muted">02</span>
+        <h2>Formato</h2>
+      </header>
+      <div class="bloco__grade">
+        <div class="campo">
+          <span class="campo__rotulo mono">Tamanho</span>
+          {{ opcoes("tamanho_resposta", tamanhos, form.tamanho_resposta) }}
+          {{ erro_de("tamanho_resposta") }}
+        </div>
+        <div class="campo">
+          <span class="campo__rotulo mono">Emoji</span>
+          {{ opcoes("uso_emoji", emojis, form.uso_emoji) }}
+          {{ erro_de("uso_emoji") }}
+        </div>
+      </div>
+      <div class="campo">
+        <label class="campo__rotulo mono" for="assinatura">Assinatura</label>
+        <input id="assinatura" name="assinatura" type="text" maxlength="120"
+               value="{{ form.assinatura }}" placeholder="Ex.: — Equipe Loja 3D">
+        <p class="campo__ajuda">Vai no fim de toda resposta. Deixe em branco para não assinar.</p>
+        {{ erro_de("assinatura") }}
+      </div>
+    </section>
+
+    <section class="bloco">
+      <header class="bloco__topo">
+        <span class="mono muted">03</span>
+        <h2>O que oferecer em cada reclamação</h2>
+      </header>
+      <p class="bloco__ajuda">A IA <strong>só promete o que estiver escrito aqui</strong>. Em branco, ela pede
+        desculpas e convida o comprador para o chat, sem prometer solução.</p>
+      {% for cat, rotulo, exemplo in categorias_oferta %}
+        <div class="campo">
+          <label class="campo__rotulo mono" for="oferta_{{ cat }}">{{ rotulo }}</label>
+          <textarea id="oferta_{{ cat }}" name="oferta_{{ cat }}" rows="2" maxlength="500"
+                    placeholder="{{ exemplo }}">{{ form.ofertas.get(cat, "") }}</textarea>
+          {{ erro_de("oferta_" ~ cat) }}
+        </div>
+      {% endfor %}
+    </section>
+
+    <section class="bloco">
+      <header class="bloco__topo">
+        <span class="mono muted">04</span>
+        <h2>Limites</h2>
+      </header>
+      <div class="bloco__grade">
+        <div class="campo">
+          <label class="campo__rotulo mono" for="nunca_dizer">Nunca dizer nem prometer</label>
+          <textarea id="nunca_dizer" name="nunca_dizer" rows="5"
+                    placeholder="Uma regra por linha. Ex.:&#10;Prazo de entrega&#10;Desconto na próxima compra">{{ form.nunca_dizer }}</textarea>
+          <p class="campo__ajuda">Uma regra por linha.</p>
+          {{ erro_de("nunca_dizer") }}
+        </div>
+        <div class="campo">
+          <label class="campo__rotulo mono" for="palavras_proibidas">Palavras proibidas</label>
+          <textarea id="palavras_proibidas" name="palavras_proibidas" rows="5"
+                    placeholder="Ex.: barato, frete grátis">{{ form.palavras_proibidas }}</textarea>
+          <p class="campo__ajuda">Separe por vírgula ou linha. Se a IA usar uma delas, a resposta vai para a fila.</p>
+          {{ erro_de("palavras_proibidas") }}
+        </div>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <header class="bloco__topo">
+        <span class="mono muted">05</span>
+        <h2>Respostas prontas para 5★ sem comentário</h2>
+      </header>
+      <p class="bloco__ajuda">Para avaliações 5 estrelas sem texto e sem foto, o robô sorteia uma destas
+        (sem gastar IA). A assinatura é acrescentada. Em branco, usa as respostas padrão.</p>
+      <div class="campo">
+        <label class="campo__rotulo mono" for="respostas_prontas">Uma por linha</label>
+        <textarea id="respostas_prontas" name="respostas_prontas" rows="4"
+                  placeholder="Ex.: Valeu demais pelas 5 estrelas! Esperamos te ver de novo.">{{ form.respostas_prontas }}</textarea>
+        {{ erro_de("respostas_prontas") }}
+      </div>
+    </section>
+
+    <div class="regras__salvar">
+      {% if form.erros %}
+        <p class="erro" role="alert">Corrija os campos marcados. Nada foi salvo.</p>
+      {% elif salvo %}
+        <p class="salvo" role="status">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {{ salvo }}
+        </p>
+      {% endif %}
+      <button class="btn btn--primario" type="submit">Salvar regras</button>
+    </div>
+  </form>
+
+  <aside class="regras__lado" hx-post="/personalizacao/regras/previa" hx-include="#form-regras"
+         hx-trigger="input from:#form-regras delay:400ms, change from:#form-regras"
+         hx-target="#previa" hx-swap="outerHTML">
+    {% include "partials/previa_regras.html" %}
+  </aside>
+</div>

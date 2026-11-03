@@ -13,7 +13,8 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 - [x] Passo 2 — cliente falso da Shopee (`app/shopee/mock_client.py`) + `data/mock_reviews.json`
 - [x] Passo 3 — análise com o Claude (`app/ai/`)
 - [x] Passo 4 — robô (worker) com a regra de decisão (`app/worker.py`)
-- [ ] Passo 5 — painel web (5a e 5b feitos: layout, fila com aprovar/editar/descartar, interruptor)
+- [ ] Passo 5 — painel web (5a, 5b e 5c feitos: layout, fila com aprovar/editar/descartar,
+      interruptor, Personalização › Regras)
 - [ ] Passo 6 — cliente real da Shopee
 - [ ] Passo 7 — quadros de vídeo
 
@@ -79,7 +80,11 @@ Fila de aprovação e interruptor "Respostas automáticas" (ligar pede confirma�
 desligar é imediato; tudo fica registrado no histórico). Em cada card:
 **Aprovar e publicar** (publica o texto como está no campo), **Editar** (abre o texto;
 Salvar guarda sem publicar) e **Descartar** (tira da fila, com Desfazer). A versão da IA e
-a versão final ficam guardadas no rascunho. Estilo em `referencias/estilo.md`.
+a versão final ficam guardadas no rascunho.
+
+Em **Personalização › Regras** ficam o tom, o tamanho, o emoji, a assinatura, o que oferecer
+em cada tipo de reclamação, o que nunca dizer, as palavras proibidas e as respostas prontas
+para 5★ sem comentário. A prévia ao lado mostra exatamente o texto que vai no prompt. Estilo em `referencias/estilo.md`.
 
 > Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
 > para ele ser recriado.
@@ -110,6 +115,7 @@ app/
   web/
     main.py          # cria o app FastAPI
     routes.py        # fila de aprovação, interruptor
+    personalizacao.py # tela Personalização (aba Regras)
     templates/       # Jinja2 + HTMX
     static/app.css   # estilo (tokens de referencias/estilo.md)
 referencias/         # referência visual do painel
