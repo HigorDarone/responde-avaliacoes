@@ -11,7 +11,7 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 
 - [x] Passo 1 — estrutura, configuração, modelos do banco, `.env.example`
 - [x] Passo 2 — cliente falso da Shopee (`app/shopee/mock_client.py`) + `data/mock_reviews.json`
-- [ ] Passo 3 — análise com o Claude
+- [x] Passo 3 — análise com o Claude (`app/ai/`)
 - [ ] Passo 4 — robô (worker) com a regra de decisão
 - [ ] Passo 5 — painel web
 - [ ] Passo 6 — cliente real da Shopee
@@ -45,7 +45,15 @@ python -m app
 ```
 
 Cria o banco (`data/app.db`), cadastra a loja de exemplo do mock e lista as avaliações
-sem resposta. Nesta fase ainda não há análise com IA, publicação nem painel web.
+sem resposta.
+
+```powershell
+python -m app analisar
+```
+
+Analisa cada avaliação do mock com o Claude (modo imediato) e mostra classificação,
+resposta sugerida e custo estimado. Precisa de `ANTHROPIC_API_KEY` no `.env`.
+Não salva nem publica nada — isso vem no passo 4 (robô).
 
 ## Testes
 
@@ -63,6 +71,12 @@ app/
     base.py          # conexão (SQLite no MVP, compatível com Postgres)
     models.py        # Shop, ShopSettings, Review, ReplyDraft, ReplyExample, ProductInfo, AuditLog
     repo.py          # criar_loja etc.
+  ai/
+    prompts.py       # prompt: regras gerais + regras da loja (com cache) + exemplos + produto
+    analyzer.py      # chama o Claude (imediato ou Batch API), valida o JSON, resposta pronta 5★
+    contexto.py      # carrega regras, exemplos e produto da loja do banco
+    exemplos.py      # escolhe os exemplos mais parecidos (TF-IDF simples)
+    custos.py        # tokens e custo estimado
   shopee/
     base.py          # interface comum (ShopeeClient, ShopeeComment)
     mock_client.py   # cliente falso, lê data/mock_reviews.json
