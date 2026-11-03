@@ -62,6 +62,7 @@ class TamanhoResposta(StrEnum):
 
 class ReviewStatus(StrEnum):
     NOVA = "nova"  # buscada, ainda não analisada
+    EM_ANALISE = "em_analise"  # enviada à Batch API, aguardando resultado
     NA_FILA = "na_fila"  # rascunho aguardando aprovação humana
     PUBLICADA = "publicada"
     DESCARTADA = "descartada"
@@ -159,6 +160,7 @@ class Review(Base):
     avaliado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     status: Mapped[str] = mapped_column(String(20), default=ReviewStatus.NOVA, index=True)
+    lote_id: Mapped[str | None] = mapped_column(String(100), index=True)  # Batch API
 
     # Resultado da análise da IA
     sentimento: Mapped[str | None] = mapped_column(String(20))

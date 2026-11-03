@@ -1,37 +1,83 @@
 """Linha de comando.
 
-    python -m app            cria o banco e lista as avaliações sem resposta
-    python -m app analisar   analisa cada avaliação com o Claude (modo imediato) e mostra
-                             a resposta sugerida. Não salva nem publica nada.
+    python -m app                    cria o banco e lista as avaliações sem resposta
+    python -m app analisar           analisa cada avaliação com o Claude (modo imediato) e
+                                     mostra a resposta sugerida. Não salva nem publica nada.
+    python -m app robo               liga o robô: um ciclo agora e depois a cada 30 minutos
+    python -m app robo --uma-vez     roda um único ciclo e sai
+    python -m app robo --intervalo 10
 """
 
-import sys
+import argparse
+import logging
 
 from app.config import get_settings
 from app.db.base import get_session, init_db
-from app.db.repo import buscar_loja_por_shopee_id, criar_loja
+from app.db.repo import buscar_loja_por_shopee_id, garantir_lojas_mock
 from app.shopee import get_shopee_client
 from app.shopee.mock_client import MockShopeeClient
 
 
-def main(argv: list[str]) -> None:
-    analisar = argv[:1] == ["analisar"]
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(prog="python -m app")
+    sub = parser.add_subparsers(dest="comando")
+    sub.add_parser("analisar")
+    robo = sub.add_parser("robo")
+    robo.add_argument("--uma-vez", action="store_true", help="roda um ciclo e sai")
+    robo.add_argument("--intervalo", type=int, default=30, help="minutos entre ciclos")
+    args = parser.parse_args(argv)
+
     settings = get_settings()
     init_db()
     client = get_shopee_client(settings)
     print(f"Banco: {settings.database_url}")
     print(f"Shopee: {'mock' if settings.use_mock_shopee else settings.shopee_env}")
+
+    if isinstance(client, MockShopeeClient):
+        with get_session() as session:
+            garantir_lojas_mock(session, client)
+
+    if args.comando == "robo":
+        _robo(client, args.uma_vez, args.intervalo)
+    else:
+        _listar(client, analisar=args.comando == "analisar")
+
+
+def _robo(client, uma_vez: bool, intervalo: int) -> None:
+    from app.ai.analyzer import Analisador
+    from app.worker import Robo
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    logging.getLogger("httpx2").setLevel(logging.WARNING)  # uma linha por chamada é ruído
+    settings = get_settings()
+    robo = Robo(client, Analisador(), settings)
+    print(f"Modelo: {settings.claude_model} · modo {'lote (Batch API)' if robo.modo_lote else 'imediato'}")
+
+    def ciclo() -> None:
+        with get_session() as session:
+            print(f"Ciclo concluído: {robo.executar_ciclo(session)}")
+
+    if uma_vez:
+        ciclo()
+        return
+
+    from apscheduler.schedulers.blocking import BlockingScheduler
+
+    agenda = BlockingScheduler()
+    agenda.add_job(ciclo, "interval", minutes=intervalo, max_instances=1, coalesce=True)
+    print(f"Robô ligado: um ciclo agora e depois a cada {intervalo} min. Ctrl+C para parar.")
+    ciclo()
+    try:
+        agenda.start()
+    except (KeyboardInterrupt, SystemExit):
+        print("Robô desligado.")
+
+
+def _listar(client, analisar: bool) -> None:
+    settings = get_settings()
     if analisar:
         print(f"Modelo: {settings.claude_model}")
-
     with get_session() as session:
-        # No modo mock, cria no banco as lojas de exemplo se ainda não existirem.
-        if isinstance(client, MockShopeeClient):
-            for shopee_id in client.lojas():
-                if buscar_loja_por_shopee_id(session, shopee_id) is None:
-                    criar_loja(session, f"Loja mock {shopee_id}", shopee_id)
-            session.commit()
-
         for shopee_id in client.lojas():
             loja = buscar_loja_por_shopee_id(session, shopee_id)
             chave = "Ligadas" if loja.settings.auto_publicar else "Desligadas"
@@ -65,7 +111,7 @@ def _analisar(session, shop_id: int, comentarios) -> None:
         try:
             r = analisador.analisar(c, carregar_contexto(session, shop_id, c))
         except anthropic.AuthenticationError:
-            sys.exit("\nChave da API inválida ou ausente. Preencha ANTHROPIC_API_KEY no .env.")
+            raise SystemExit("\nChave da API inválida ou ausente. Preencha ANTHROPIC_API_KEY no .env.")
         except (AnaliseError, anthropic.APIError) as e:
             print(f"    ERRO: {e}\n")
             continue
@@ -81,4 +127,4 @@ def _analisar(session, shop_id: int, comentarios) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

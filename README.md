@@ -12,7 +12,7 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 - [x] Passo 1 — estrutura, configuração, modelos do banco, `.env.example`
 - [x] Passo 2 — cliente falso da Shopee (`app/shopee/mock_client.py`) + `data/mock_reviews.json`
 - [x] Passo 3 — análise com o Claude (`app/ai/`)
-- [ ] Passo 4 — robô (worker) com a regra de decisão
+- [x] Passo 4 — robô (worker) com a regra de decisão (`app/worker.py`)
 - [ ] Passo 5 — painel web
 - [ ] Passo 6 — cliente real da Shopee
 - [ ] Passo 7 — quadros de vídeo
@@ -53,7 +53,26 @@ python -m app analisar
 
 Analisa cada avaliação do mock com o Claude (modo imediato) e mostra classificação,
 resposta sugerida e custo estimado. Precisa de `ANTHROPIC_API_KEY` no `.env`.
-Não salva nem publica nada — isso vem no passo 4 (robô).
+Não salva nem publica nada.
+
+```powershell
+python -m app robo --uma-vez     # um ciclo e sai
+python -m app robo               # um ciclo agora e depois a cada 30 min (Ctrl+C para parar)
+python -m app robo --intervalo 10
+```
+
+O robô busca as avaliações sem resposta, analisa, e decide:
+- chave "Respostas automáticas" **desligada** (padrão) → tudo vai para a fila de aprovação;
+- **ligada** → só avaliações positivas, sem pedido de revisão, são publicadas sozinhas;
+  negativas e neutras sempre vão para a fila.
+
+Com `USE_BATCH_API=true` as análises vão pela Batch API (50% mais barata): o resultado
+chega em um ciclo seguinte (normalmente em menos de 1 hora). Para ver o resultado na hora,
+use `USE_BATCH_API=false` no `.env`. O robô respeita `LIMITE_AVALIACOES_MES` por loja;
+o que passar do limite fica esperando o mês seguinte.
+
+> Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
+> para ele ser recriado.
 
 ## Testes
 
@@ -77,6 +96,7 @@ app/
     contexto.py      # carrega regras, exemplos e produto da loja do banco
     exemplos.py      # escolhe os exemplos mais parecidos (TF-IDF simples)
     custos.py        # tokens e custo estimado
+  worker.py          # robô: buscar -> analisar -> decidir -> publicar ou enfileirar
   shopee/
     base.py          # interface comum (ShopeeClient, ShopeeComment)
     mock_client.py   # cliente falso, lê data/mock_reviews.json
