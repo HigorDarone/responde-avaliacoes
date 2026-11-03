@@ -109,8 +109,8 @@ Limites da API (documentação oficial): resposta de 1 a 500 caracteres e **não
 editada** depois de publicada. Em **Personalização › Produtos**, "Importar da Shopee" traz
 nome, material e descrição dos anúncios sem apagar o que você escreveu.
 
-> Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
-> para ele ser recriado.
+> Colunas novas e opcionais são criadas sozinhas ao iniciar (sem perder dados).
+> Mudanças maiores no banco vão pedir migrações (Alembic).
 
 ## Testes
 
