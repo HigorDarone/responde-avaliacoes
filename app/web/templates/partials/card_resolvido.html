@@ -14,11 +14,22 @@
   </div>
 
   {% if publicada %}
+    {% set e_exemplo = (review | texto_avaliacao, (draft.texto_final or "") | trim) in exemplos_salvos %}
     <p class="resolvido__texto">{{ draft.texto_final }}</p>
-    <p class="mono muted resolvido__meta">
-      {{ 'Editada e publicada' if draft.editado else 'Publicada' }} por {{ draft.publicado_por_usuario or draft.publicado_por }}
-      em {{ draft.publicado_em | data_hora }}
-    </p>
+    <div class="resolvido__linha">
+      <p class="mono muted resolvido__meta">
+        {{ 'Editada e publicada' if draft.editado else 'Publicada' }} por {{ draft.publicado_por_usuario or draft.publicado_por }}
+        em {{ draft.publicado_em | data_hora }}
+      </p>
+      {% if e_exemplo %}
+        <span class="pilula mono pilula--ok">★ {{ 'Virou exemplo (sua edição)' if draft.editado else 'Exemplo da loja' }}</span>
+      {% else %}
+        <button class="btn btn--texto btn--otima" hx-post="/fila/{{ review.id }}/otima"
+                hx-target="#review-{{ review.id }}" hx-swap="outerHTML" hx-disabled-elt="this">
+          ☆ Marcar como ótima
+        </button>
+      {% endif %}
+    </div>
   {% else %}
     <div class="resolvido__linha">
       <p class="muted">A avaliação saiu da fila e não será respondida.</p>

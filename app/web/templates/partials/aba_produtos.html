@@ -1,0 +1,105 @@
+﻿{% macro erro_de(campo) %}{% if erros.get(campo) %}<p class="erro-campo" role="alert">{{ erros[campo] }}</p>{% endif %}{% endmacro %}
+
+<div id="aba" class="aba">
+  <div class="aba__intro">
+    <p>Quando chega uma avaliação, a IA recebe <strong>só as informações daquele produto</strong>.
+      Sem cadastro, ela não inventa: perguntas sobre o produto vão para a fila como “Precisa de você”.</p>
+  </div>
+
+  {% if aviso %}<p class="salvo" role="status">✓ {{ aviso }}</p>{% endif %}
+
+  {% if sem_cadastro %}
+    <section class="bloco faltando">
+      <header class="bloco__topo">
+        <span class="pilula mono pilula--aviso">{{ sem_cadastro | length }} sem informações</span>
+        <h2>Produtos das suas avaliações</h2>
+      </header>
+      <ul class="faltando__lista">
+        {% for item_id, nome, total in sem_cadastro %}
+          <li>
+            <span>
+              <span class="faltando__nome">{{ nome }}</span>
+              <span class="mono muted">#{{ item_id }} · {{ total }} {{ 'avaliação' if total == 1 else 'avaliações' }}</span>
+            </span>
+            <a class="btn btn--contorno" href="/personalizacao/produtos?item_id={{ item_id }}&nome={{ nome | urlencode }}#form-produto"
+               hx-get="/personalizacao/produtos?item_id={{ item_id }}&nome={{ nome | urlencode }}" hx-target="#aba" hx-swap="outerHTML show:#form-produto:top">
+              Cadastrar
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <details class="bloco novo" id="form-produto" {% if aberto %}open{% endif %}>
+    <summary><span class="mono">{{ '✎' if editando else '+' }}</span> {{ 'Editar ' ~ editando.nome if editando else 'Novo produto' }}</summary>
+    <form class="novo__form" hx-post="/personalizacao/produtos" hx-target="#aba" hx-swap="outerHTML"
+          hx-disabled-elt="find button[type=submit]">
+      {% if editando %}<input type="hidden" name="produto_id" value="{{ editando.id }}">{% endif %}
+      <div class="bloco__grade">
+        <div class="campo">
+          <label class="campo__rotulo mono" for="p-item_id">Número do anúncio (item_id)</label>
+          <input id="p-item_id" name="item_id" type="text" inputmode="numeric" value="{{ form.item_id }}"
+                 placeholder="Ex.: 5001">
+          {{ erro_de("item_id") }}
+        </div>
+        {% for campo, rotulo, exemplo, linhas in campos_produto if linhas == 1 %}
+          <div class="campo">
+            <label class="campo__rotulo mono" for="p-{{ campo }}">{{ rotulo }}</label>
+            <input id="p-{{ campo }}" name="{{ campo }}" type="text" maxlength="1000" value="{{ form[campo] }}" placeholder="{{ exemplo }}">
+            {{ erro_de(campo) }}
+          </div>
+        {% endfor %}
+      </div>
+      {% for campo, rotulo, exemplo, linhas in campos_produto if linhas > 1 %}
+        <div class="campo">
+          <label class="campo__rotulo mono" for="p-{{ campo }}">{{ rotulo }}</label>
+          <textarea id="p-{{ campo }}" name="{{ campo }}" rows="{{ linhas }}" maxlength="1000" placeholder="{{ exemplo }}">{{ form[campo] }}</textarea>
+          {{ erro_de(campo) }}
+        </div>
+      {% endfor %}
+      <div class="novo__acoes">
+        {% if editando %}
+          <a class="btn btn--texto" href="/personalizacao/produtos" hx-get="/personalizacao/produtos" hx-target="#aba" hx-swap="outerHTML">Cancelar</a>
+        {% endif %}
+        <button class="btn btn--primario" type="submit">{{ 'Salvar alterações' if editando else 'Cadastrar produto' }}</button>
+      </div>
+    </form>
+  </details>
+
+  {% if produtos %}
+    <div class="grade-cards">
+      {% for p in produtos %}
+        <article class="card produto">
+          <header class="card__topo">
+            <div>
+              <h2 class="card__produto">{{ p.nome }}</h2>
+              <span class="mono muted">#{{ p.item_id }}</span>
+            </div>
+          </header>
+          <dl class="produto__dados">
+            {% for campo, rotulo, exemplo, linhas in campos_produto if campo != "nome" and p[campo] %}
+              <dt class="mono">{{ rotulo }}</dt><dd>{{ p[campo] }}</dd>
+            {% endfor %}
+          </dl>
+          <footer class="exemplo__rodape">
+            <span class="mono muted">Atualizado {{ p.atualizado_em | data_curta }}</span>
+            <span class="exemplo__acoes">
+              <a class="btn btn--contorno" href="/personalizacao/produtos?editar={{ p.id }}#form-produto"
+                 hx-get="/personalizacao/produtos?editar={{ p.id }}" hx-target="#aba" hx-swap="outerHTML show:#form-produto:top">Editar</a>
+              <button class="btn btn--texto" hx-post="/personalizacao/produtos/{{ p.id }}/excluir"
+                      hx-target="#aba" hx-swap="outerHTML" hx-disabled-elt="this"
+                      hx-confirm="Excluir as informações de {{ p.nome }}?">Excluir</button>
+            </span>
+          </footer>
+        </article>
+      {% endfor %}
+    </div>
+  {% elif not sem_cadastro %}
+    <div class="vazio">
+      <span class="pilula mono">Nenhum produto</span>
+      <h2>Conte à IA sobre seus produtos</h2>
+      <p>Material, tamanho e o que é normal da impressão 3D ajudam a responder dúvidas sem inventar.</p>
+    </div>
+  {% endif %}
+</div>

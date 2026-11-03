@@ -1,6 +1,7 @@
 ﻿{% set cat = categorias.get(review.categoria, ("Outro", "")) %}
 {% set editando = modo == "editar" %}
 {% set alvo = "#review-" ~ review.id %}
+{% set e_exemplo = (review | texto_avaliacao, texto | trim) in exemplos_salvos %}
 <article class="card {{ 'card--revisao' if review.precisa_revisao }} {{ 'card--editando' if editando }}" id="review-{{ review.id }}">
   <header class="card__topo">
     <div>
@@ -17,6 +18,7 @@
     {% if review.sentimento %}<span class="pilula mono">{{ review.sentimento }}</span>{% endif %}
     {% if review.gravidade and review.gravidade >= 3 %}<span class="pilula mono pilula--erro">Gravidade {{ review.gravidade }}</span>{% endif %}
     {% if draft.editado %}<span class="pilula mono pilula--azul">Editada</span>{% endif %}
+    {% if e_exemplo %}<span class="pilula mono pilula--ok">★ Exemplo da loja</span>{% endif %}
   </div>
 
   {% if review.texto %}
@@ -70,6 +72,12 @@
         <button class="btn btn--texto" type="button"
                 hx-post="/fila/{{ review.id }}/descartar" hx-target="{{ alvo }}" hx-swap="outerHTML" hx-disabled-elt="this">
           Descartar
+        </button>
+      {% endif %}
+      {% if not e_exemplo %}
+        <button class="btn btn--texto btn--otima" type="button" title="Guarda esta resposta como exemplo para a IA"
+                hx-post="/fila/{{ review.id }}/otima" hx-include="closest form" hx-target="{{ alvo }}" hx-swap="outerHTML" hx-disabled-elt="this">
+          ☆ Marcar como ótima
         </button>
       {% endif %}
     </div>

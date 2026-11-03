@@ -17,7 +17,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.base import get_session
-from app.db.models import AuditLog, DraftStatus, PublicadoPor, ReplyDraft, Review, ReviewStatus, Shop
+from app.db.models import (
+    AuditLog,
+    DraftStatus,
+    OrigemExemplo,
+    PublicadoPor,
+    ReplyDraft,
+    ReplyExample,
+    Review,
+    ReviewStatus,
+    Shop,
+)
+from app.db.repo import salvar_exemplo_da_review, texto_da_avaliacao
 from app.shopee import get_shopee_client
 from app.shopee.base import ShopeeClient, ShopeeError
 
@@ -71,6 +82,7 @@ templates.env.filters.update(
     data_hora=_data_hora,
     sem_prefixo_revisao=_sem_prefixo_revisao,
     url_segura=_url_segura,
+    texto_avaliacao=texto_da_avaliacao,
 )
 
 
@@ -132,9 +144,26 @@ def _pendentes(db: Session, loja: Shop | None) -> list[tuple[Review, ReplyDraft]
     )
 
 
+def _exemplos_salvos(db: Session, loja: Shop | None) -> set[tuple[str, str]]:
+    """Pares (avaliação, resposta) que já são exemplo, para marcar "Marcada como ótima"."""
+    if loja is None:
+        return set()
+    return set(
+        db.execute(
+            select(ReplyExample.texto_avaliacao, ReplyExample.resposta_ideal).where(
+                ReplyExample.shop_id == loja.id, ReplyExample.ativo.is_(True)
+            )
+        ).all()
+    )
+
+
 def _contexto_resumo(db: Session, loja: Shop | None) -> dict:
     itens = _pendentes(db, loja)
-    return {"itens": itens, "revisao": sum(1 for r, _ in itens if r.precisa_revisao)}
+    return {
+        "itens": itens,
+        "revisao": sum(1 for r, _ in itens if r.precisa_revisao),
+        "exemplos_salvos": _exemplos_salvos(db, loja),
+    }
 
 
 @router.get("/fila")
@@ -210,6 +239,30 @@ def _card(request: Request, db: Session, loja: Shop, review: Review, draft: Repl
     return templates.TemplateResponse(request, template, ctx, status_code=status_code)
 
 
+@router.post("/fila/{review_id}/otima")
+def marcar_otima(
+    review_id: int,
+    request: Request,
+    texto: str = Form(""),
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+):
+    """Botão "Marcar como ótima": a resposta vira exemplo para a IA.
+
+    Na fila vale o texto do campo; depois de publicada, o texto publicado.
+    """
+    review, draft = _item(db, loja, review_id)
+    pendente = draft.status == DraftStatus.PENDENTE
+    resposta = (texto if pendente else (draft.texto_final or "")).strip() or draft.texto_ia
+    if draft.status == DraftStatus.DESCARTADO:
+        return _ja_tratada(request, db, loja, review, draft)
+    salvar_exemplo_da_review(db, review, resposta, OrigemExemplo.MARCADA_OTIMA)
+    db.add(AuditLog(shop_id=loja.id, acao="exemplo_marcado_otimo", autor=AUTOR_PAINEL,
+                    detalhes={"review_id": review.id}))
+    db.commit()
+    return _card(request, db, loja, review, draft, texto=resposta if pendente else None)
+
+
 def _ja_tratada(request, db, loja, review, draft):
     return _card(request, db, loja, review, draft, status_code=409)
 
@@ -283,6 +336,9 @@ def aprovar(
     draft.publicado_por_usuario = AUTOR_PAINEL
     draft.publicado_em = datetime.now(UTC)
     review.status = ReviewStatus.PUBLICADA
+    if draft.editado:
+        # Aprendizado: a versão que você corrigiu vira exemplo para as próximas respostas.
+        salvar_exemplo_da_review(db, review, texto, OrigemExemplo.EDICAO)
     db.add(AuditLog(shop_id=loja.id, acao="resposta_publicada", autor=AUTOR_PAINEL,
                     detalhes={"review_id": review.id, "comment_id": review.comment_id,
                               "editada": draft.editado}))

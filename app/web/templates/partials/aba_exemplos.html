@@ -1,0 +1,106 @@
+{% macro erro_de(campo) %}{% if erros.get(campo) %}<p class="erro-campo" role="alert">{{ erros[campo] }}</p>{% endif %}{% endmacro %}
+
+<div id="aba" class="aba">
+  <div class="aba__intro">
+    <p>A cada avaliação, a IA recebe os <strong>3–4 exemplos mais parecidos</strong> (mesmo sentimento,
+      texto parecido) e imita o estilo. Exemplos novos chegam sozinhos quando você <strong>edita e publica</strong>
+      uma resposta ou clica em <strong>“Marcar como ótima”</strong> na fila.</p>
+    <p class="mono muted">Só os {{ limite }} ativos mais recentes de cada categoria entram na escolha.</p>
+  </div>
+
+  {% if aviso %}<p class="salvo" role="status">✓ {{ aviso }}</p>{% endif %}
+
+  <nav class="filtros" aria-label="Filtrar por categoria">
+    <a href="/personalizacao/exemplos" class="pilula mono {{ 'pilula--azul' if not filtro }}">Todos</a>
+    {% for valor, rotulo in lista_categorias %}
+      <a href="/personalizacao/exemplos?categoria={{ valor }}" class="pilula mono {{ 'pilula--azul' if filtro == valor }}">
+        {{ rotulo }} <span class="filtros__n">{{ ativos_por_cat.get(valor, 0) }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <details class="bloco novo" {% if erros %}open{% endif %}>
+    <summary><span class="mono">+</span> Novo exemplo</summary>
+    <form class="novo__form" hx-post="/personalizacao/exemplos" hx-target="#aba" hx-swap="outerHTML"
+          hx-disabled-elt="find button[type=submit]">
+      <input type="hidden" name="filtro" value="{{ filtro }}">
+      <div class="bloco__grade">
+        <div class="campo">
+          <label class="campo__rotulo mono" for="novo-categoria">Categoria</label>
+          <select id="novo-categoria" name="categoria">
+            {% for valor, rotulo in lista_categorias %}
+              <option value="{{ valor }}" {% if novo.categoria == valor %}selected{% endif %}>{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+          {{ erro_de("categoria") }}
+        </div>
+        <div class="campo">
+          <label class="campo__rotulo mono" for="novo-sentimento">Sentimento</label>
+          <select id="novo-sentimento" name="sentimento">
+            {% for valor, rotulo in sentimentos %}
+              <option value="{{ valor }}" {% if novo.sentimento == valor %}selected{% endif %}>{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+          {{ erro_de("sentimento") }}
+        </div>
+      </div>
+      <div class="campo">
+        <label class="campo__rotulo mono" for="novo-avaliacao">Avaliação do comprador</label>
+        <textarea id="novo-avaliacao" name="texto_avaliacao" rows="2" maxlength="2000"
+                  placeholder="Ex.: A peça chegou com uma rachadura na base.">{{ novo.texto_avaliacao }}</textarea>
+        {{ erro_de("texto_avaliacao") }}
+      </div>
+      <div class="campo">
+        <label class="campo__rotulo mono" for="novo-resposta">Resposta ideal da loja</label>
+        <textarea id="novo-resposta" name="resposta_ideal" rows="3" maxlength="2000"
+                  placeholder="Do jeitinho que você responderia.">{{ novo.resposta_ideal }}</textarea>
+        {{ erro_de("resposta_ideal") }}
+      </div>
+      <div class="novo__acoes"><button class="btn btn--primario" type="submit">Adicionar exemplo</button></div>
+    </form>
+  </details>
+
+  {% if exemplos %}
+    <div class="grade-cards">
+      {% for e in exemplos %}
+        {% set cat = categorias.get(e.categoria, ("Outro", "")) %}
+        {% set origem = origens.get(e.origem, (e.origem, "")) %}
+        <article class="card exemplo {{ 'exemplo--inativo' if not e.ativo }}">
+          <div class="etiquetas">
+            <span class="pilula mono {{ cat[1] }}">{{ cat[0] }}</span>
+            <span class="pilula mono">{{ e.sentimento }}</span>
+            <span class="pilula mono {{ origem[1] }}">{{ origem[0] }}</span>
+            {% if not e.ativo %}<span class="pilula mono">Desativado</span>
+            {% elif e.id in fora_do_limite %}<span class="pilula mono pilula--aviso" title="Há mais de {{ limite }} exemplos ativos nesta categoria; os mais antigos ficam de fora">Fora do limite</span>{% endif %}
+          </div>
+          <div class="exemplo__par">
+            <p class="mono muted">Avaliação</p>
+            <blockquote class="avaliacao">{{ e.texto_avaliacao }}</blockquote>
+            <p class="mono muted">Resposta ideal</p>
+            <p class="exemplo__resposta">{{ e.resposta_ideal }}</p>
+          </div>
+          <footer class="exemplo__rodape">
+            <span class="mono muted">{{ e.criado_em | data_curta }}</span>
+            <span class="exemplo__acoes">
+              <button class="btn btn--contorno" hx-post="/personalizacao/exemplos/{{ e.id }}/{{ 'desativar' if e.ativo else 'ativar' }}"
+                      hx-vals='{"filtro": "{{ filtro }}"}' hx-target="#aba" hx-swap="outerHTML" hx-disabled-elt="this">
+                {{ 'Desativar' if e.ativo else 'Ativar' }}
+              </button>
+              <button class="btn btn--texto" hx-post="/personalizacao/exemplos/{{ e.id }}/excluir"
+                      hx-vals='{"filtro": "{{ filtro }}"}' hx-target="#aba" hx-swap="outerHTML" hx-disabled-elt="this"
+                      hx-confirm="Excluir este exemplo? Não dá para desfazer. (Para só pausar, use Desativar.)">
+                Excluir
+              </button>
+            </span>
+          </footer>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="vazio">
+      <span class="pilula mono">Sem exemplos{{ ' nesta categoria' if filtro }}</span>
+      <h2>Ensine a IA pelo exemplo</h2>
+      <p>Adicione um exemplo acima, ou edite e publique respostas na fila — elas viram exemplos sozinhas.</p>
+    </div>
+  {% endif %}
+</div>

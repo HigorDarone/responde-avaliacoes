@@ -13,8 +13,8 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 - [x] Passo 2 — cliente falso da Shopee (`app/shopee/mock_client.py`) + `data/mock_reviews.json`
 - [x] Passo 3 — análise com o Claude (`app/ai/`)
 - [x] Passo 4 — robô (worker) com a regra de decisão (`app/worker.py`)
-- [ ] Passo 5 — painel web (5a, 5b e 5c feitos: layout, fila com aprovar/editar/descartar,
-      interruptor, Personalização › Regras)
+- [ ] Passo 5 — painel web (5a, 5b, 5c e 5c2 feitos: layout, fila com aprovar/editar/descartar,
+      interruptor, Personalização › Regras, Exemplos, Produtos, aprendizado pelas edições)
 - [ ] Passo 6 — cliente real da Shopee
 - [ ] Passo 7 — quadros de vídeo
 
@@ -84,7 +84,14 @@ a versão final ficam guardadas no rascunho.
 
 Em **Personalização › Regras** ficam o tom, o tamanho, o emoji, a assinatura, o que oferecer
 em cada tipo de reclamação, o que nunca dizer, as palavras proibidas e as respostas prontas
-para 5★ sem comentário. A prévia ao lado mostra exatamente o texto que vai no prompt. Estilo em `referencias/estilo.md`.
+para 5★ sem comentário. A prévia ao lado mostra exatamente o texto que vai no prompt.
+
+Em **Personalização › Exemplos** ficam os pares "avaliação → resposta ideal" que a IA imita
+(3–4 mais parecidos por análise; só os 30 ativos mais recentes de cada categoria). Eles
+chegam sozinhos: resposta **editada e publicada** vira exemplo, e o botão **"Marcar como
+ótima"** na fila também cria um. Em **Produtos** ficam material, tamanho, o que é normal da
+impressão 3D e cuidados de cada anúncio; a tela lista os produtos das avaliações que ainda
+não têm informações. Estilo em `referencias/estilo.md`.
 
 > Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
 > para ele ser recriado.
@@ -115,7 +122,7 @@ app/
   web/
     main.py          # cria o app FastAPI
     routes.py        # fila de aprovação, interruptor
-    personalizacao.py # tela Personalização (aba Regras)
+    personalizacao.py # tela Personalização (abas Regras, Exemplos, Produtos)
     templates/       # Jinja2 + HTMX
     static/app.css   # estilo (tokens de referencias/estilo.md)
 referencias/         # referência visual do painel

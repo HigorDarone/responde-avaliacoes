@@ -202,6 +202,8 @@ dialog li + li { margin-top: 6px; }
 .btn--texto { color: var(--muted); padding-left: 12px; padding-right: 12px; }
 .btn--texto:hover { color: var(--text); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn--otima { color: #8a5a00; }
+.btn--otima:hover { color: var(--accent); }
 
 .pilula {
   display: inline-flex;
@@ -492,6 +494,90 @@ dialog li + li { margin-top: 6px; }
 }
 .previa__nota { margin: 0; font-size: 10px; color: #8d8c80; }
 
+/* Abas Exemplos e Produtos */
+.aba { display: grid; gap: 20px; }
+.aba__intro { display: grid; gap: 6px; max-width: 760px; }
+.aba__intro p { margin: 0; color: var(--muted); font-size: 16px; }
+.aba__intro strong { color: var(--text); }
+.aba__intro .mono { font-size: 11px; }
+.aba > .salvo { margin: 0; }
+
+.filtros { display: flex; flex-wrap: wrap; gap: 6px; }
+.filtros a { text-decoration: none; }
+.filtros__n { opacity: 0.6; }
+
+details.novo { padding: 0; gap: 0; scroll-margin-top: 96px; }
+details.novo summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 24px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+details.novo summary::-webkit-details-marker { display: none; }
+details.novo summary .mono {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+}
+.novo__form { display: grid; gap: 16px; padding: 0 24px 24px; }
+.novo__acoes { display: flex; justify-content: flex-end; gap: 8px; }
+.campo select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+}
+.campo select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+
+.grade-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.exemplo, .produto { gap: 14px; box-shadow: none; }
+.exemplo--inativo { opacity: 0.55; background: transparent; }
+.exemplo__par { display: grid; gap: 6px; }
+.exemplo__par .mono { margin: 6px 0 0; font-size: 10px; }
+.exemplo__par .avaliacao { font-size: 15px; }
+.exemplo__resposta { margin: 0; font-size: 15px; line-height: 1.45; }
+.exemplo__rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.exemplo__rodape .mono { font-size: 10px; }
+.exemplo__acoes { display: flex; gap: 4px; }
+.exemplo__acoes .btn { padding: 8px 14px; font-size: 14px; }
+
+.produto__dados { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; }
+.produto__dados dt { color: var(--muted); font-size: 10px; padding-top: 3px; }
+.produto__dados dd { margin: 0; font-size: 15px; line-height: 1.4; }
+
+.faltando { border-color: rgba(94, 85, 21, 0.25); background: color-mix(in srgb, var(--warn-bg) 55%, var(--surface)); }
+.faltando .bloco__topo { flex-wrap: wrap; align-items: center; }
+.faltando__lista { list-style: none; margin: 0; padding: 0; display: grid; }
+.faltando__lista li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.faltando__lista li > span { display: grid; gap: 2px; }
+.faltando__nome { font-size: 16px; }
+.faltando__lista .mono { font-size: 10px; }
+
 @media (max-width: 960px) {
   .regras { grid-template-columns: 1fr; }
   .regras__lado { position: static; }
@@ -512,6 +598,10 @@ dialog li + li { margin-top: 6px; }
   .bloco { padding: 20px; }
   .bloco__topo h2 { font-size: 22px; }
   .regras__salvar .btn { flex: 1 1 100%; }
+  details.novo summary { padding: 16px 18px; }
+  .novo__form { padding: 0 18px 18px; }
+  .produto__dados { grid-template-columns: 1fr; gap: 2px; }
+  .produto__dados dd { margin-bottom: 8px; }
   .chave { padding-left: 12px; }
   .chave__texto .mono { display: none; }
   .card { padding: 18px; }

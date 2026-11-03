@@ -1,27 +1,29 @@
 """Tela "Personalização": abas Regras · Exemplos · Produtos · Testar.
 
-Por enquanto só a aba Regras (etapa 5c). As regras salvas aqui entram no prompt de
-todas as análises seguintes (ver app/ai/prompts.py).
+Regras, exemplos e produtos salvos aqui entram no prompt das análises seguintes
+(ver app/ai/prompts.py e app/ai/contexto.py). A aba Testar é a etapa 5c3.
 """
 
 import re
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai.contexto import RegrasLoja
 from app.ai.prompts import render_regras_loja
-from app.db.models import AuditLog, Shop
+from app.db.models import AuditLog, OrigemExemplo, ProductInfo, ReplyExample, Review, Shop
+from app.db.repo import exemplo_existente
 from app.web.routes import AUTOR_PAINEL, _contexto, get_db, loja_atual, templates
 
 router = APIRouter(prefix="/personalizacao")
 
 ABAS = [
     ("regras", "Regras", True),
-    ("exemplos", "Exemplos", False),
-    ("produtos", "Produtos", False),
+    ("exemplos", "Exemplos", True),
+    ("produtos", "Produtos", True),
     ("testar", "Testar", False),
 ]
 
@@ -227,3 +229,280 @@ def previa_regras(request: Request, form: FormRegras = Depends(_form),
     """Mostra como a IA vai ler as regras do formulário, sem salvar."""
     form.validar()
     return templates.TemplateResponse(request, "partials/previa_regras.html", _ctx(db, loja, form))
+
+
+# --- Aba Exemplos ---
+
+CATEGORIAS = [
+    ("elogio", "Elogio"),
+    ("defeito", "Defeito"),
+    ("quebrado_no_envio", "Quebrou no envio"),
+    ("atraso", "Atraso"),
+    ("produto_diferente", "Produto diferente"),
+    ("duvida", "Dúvida"),
+    ("outro", "Outro"),
+]
+SENTIMENTOS = [("positivo", "Positivo"), ("neutro", "Neutro"), ("negativo", "Negativo")]
+ORIGENS = {
+    "manual": ("Manual", ""),
+    "edicao": ("Sua edição", "pilula--azul"),
+    "marcada_otima": ("Marcada ótima", "pilula--ok"),
+}
+MAX_TEXTO = 2000
+
+
+def _ctx_exemplos(db: Session, loja: Shop, categoria: str = "", novo: dict | None = None,
+                  erros: dict | None = None, aviso: str = "") -> dict:
+    consulta = select(ReplyExample).where(ReplyExample.shop_id == loja.id)
+    if categoria:
+        consulta = consulta.where(ReplyExample.categoria == categoria)
+    exemplos = db.scalars(consulta.order_by(ReplyExample.criado_em.desc(), ReplyExample.id.desc())).all()
+
+    # Quantos ativos por categoria, e quais ficam de fora do limite (os mais antigos).
+    limite = loja.settings.max_exemplos_por_categoria
+    ativos_por_cat = dict(
+        db.execute(
+            select(ReplyExample.categoria, func.count())
+            .where(ReplyExample.shop_id == loja.id, ReplyExample.ativo.is_(True))
+            .group_by(ReplyExample.categoria)
+        ).all()
+    )
+    vistos: dict[str, int] = {}
+    fora_do_limite: set[int] = set()
+    for e in db.scalars(
+        select(ReplyExample)
+        .where(ReplyExample.shop_id == loja.id, ReplyExample.ativo.is_(True))
+        .order_by(ReplyExample.criado_em.desc(), ReplyExample.id.desc())
+    ):
+        vistos[e.categoria] = vistos.get(e.categoria, 0) + 1
+        if vistos[e.categoria] > limite:
+            fora_do_limite.add(e.id)
+
+    return _contexto(
+        db, loja, "personalizacao",
+        aba="exemplos", abas=ABAS, exemplos=exemplos, filtro=categoria,
+        lista_categorias=CATEGORIAS, sentimentos=SENTIMENTOS,
+        origens=ORIGENS, ativos_por_cat=ativos_por_cat, limite=limite, fora_do_limite=fora_do_limite,
+        novo=novo or {"categoria": categoria or "elogio", "sentimento": "positivo",
+                      "texto_avaliacao": "", "resposta_ideal": ""},
+        erros=erros or {}, aviso=aviso,
+    )
+
+
+def _aba_exemplos(request: Request, db: Session, loja: Shop, status_code: int = 200, **kw):
+    return templates.TemplateResponse(
+        request, "partials/aba_exemplos.html", _ctx_exemplos(db, loja, **kw), status_code=status_code
+    )
+
+
+def _exemplo_da_loja(db: Session, loja: Shop | None, exemplo_id: int) -> ReplyExample:
+    exemplo = db.get(ReplyExample, exemplo_id)
+    if loja is None or exemplo is None or exemplo.shop_id != loja.id:
+        raise HTTPException(status_code=404, detail="Exemplo não encontrado.")
+    return exemplo
+
+
+@router.get("/exemplos")
+def exemplos(request: Request, categoria: str = "", db: Session = Depends(get_db),
+             loja: Shop | None = Depends(loja_atual)):
+    if loja is None:
+        return templates.TemplateResponse(request, "personalizacao.html", _contexto(db, None, "personalizacao"))
+    categoria = categoria if categoria in dict(CATEGORIAS) else ""
+    return templates.TemplateResponse(request, "personalizacao.html", _ctx_exemplos(db, loja, categoria))
+
+
+@router.post("/exemplos")
+def criar_exemplo(
+    request: Request,
+    categoria: str = Form(""),
+    sentimento: str = Form(""),
+    texto_avaliacao: str = Form(""),
+    resposta_ideal: str = Form(""),
+    filtro: str = Form(""),
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+):
+    if loja is None:
+        raise HTTPException(status_code=404)
+    novo = {"categoria": categoria, "sentimento": sentimento,
+            "texto_avaliacao": texto_avaliacao.strip(), "resposta_ideal": resposta_ideal.strip()}
+    erros = {}
+    if categoria not in dict(CATEGORIAS):
+        erros["categoria"] = "Escolha uma categoria."
+    if sentimento not in dict(SENTIMENTOS):
+        erros["sentimento"] = "Escolha um sentimento."
+    for campo in ("texto_avaliacao", "resposta_ideal"):
+        if not novo[campo]:
+            erros[campo] = "Preencha este campo."
+        elif len(novo[campo]) > MAX_TEXTO:
+            erros[campo] = f"Use no máximo {MAX_TEXTO} caracteres."
+    if not erros and exemplo_existente(db, loja.id, novo["texto_avaliacao"], novo["resposta_ideal"]):
+        erros["resposta_ideal"] = "Este exemplo já existe."
+    if erros:
+        return _aba_exemplos(request, db, loja, status_code=422, categoria=filtro, novo=novo, erros=erros)
+
+    db.add(ReplyExample(shop_id=loja.id, origem=OrigemExemplo.MANUAL, ativo=True, **novo))
+    db.add(AuditLog(shop_id=loja.id, acao="exemplo_criado", autor=AUTOR_PAINEL,
+                    detalhes={"categoria": categoria}))
+    db.commit()
+    return _aba_exemplos(request, db, loja, categoria=filtro, aviso="Exemplo adicionado.")
+
+
+@router.post("/exemplos/{exemplo_id}/{acao}")
+def alterar_exemplo(
+    exemplo_id: int,
+    acao: str,
+    request: Request,
+    filtro: str = Form(""),
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+):
+    exemplo = _exemplo_da_loja(db, loja, exemplo_id)
+    if acao == "ativar":
+        exemplo.ativo = True
+        aviso = "Exemplo ativado: volta a ser usado pela IA."
+    elif acao == "desativar":
+        exemplo.ativo = False
+        aviso = "Exemplo desativado: a IA deixa de usá-lo."
+    elif acao == "excluir":
+        db.delete(exemplo)
+        db.add(AuditLog(shop_id=loja.id, acao="exemplo_excluido", autor=AUTOR_PAINEL,
+                        detalhes={"categoria": exemplo.categoria, "origem": exemplo.origem}))
+        aviso = "Exemplo excluído."
+    else:
+        raise HTTPException(status_code=404)
+    db.commit()
+    return _aba_exemplos(request, db, loja, categoria=filtro, aviso=aviso)
+
+
+# --- Aba Produtos ---
+
+CAMPOS_PRODUTO = [
+    ("nome", "Nome", "Ex.: Vaso Geométrico Low Poly 15cm", 1),
+    ("material", "Material", "Ex.: PLA fosco", 1),
+    ("tamanho", "Tamanho", "Ex.: 15 cm de altura, 10 cm de diâmetro", 1),
+    ("normal_impressao_3d", "O que é normal da impressão 3D", "Ex.: Linhas de camada leves na lateral; pequenas marcas na base.", 3),
+    ("cuidados", "Cuidados de uso", "Ex.: Não é à prova d'água; evitar sol direto e lava-louças.", 3),
+    ("observacoes", "Observações", "Ex.: Pode ser pintado com acrílica; recomendamos primer.", 3),
+]
+MAX_CAMPO_PRODUTO = 1000
+
+
+def _produtos_sem_cadastro(db: Session, loja: Shop) -> list[tuple[int, str, int]]:
+    """Produtos que aparecem nas avaliações mas não têm informações: (item_id, nome, nº de avaliações)."""
+    cadastrados = select(ProductInfo.item_id).where(ProductInfo.shop_id == loja.id)
+    return [
+        (item_id, nome, total)
+        for item_id, nome, total in db.execute(
+            select(Review.item_id, func.max(Review.produto_nome), func.count())
+            .where(Review.shop_id == loja.id, Review.item_id.not_in(cadastrados))
+            .group_by(Review.item_id)
+            .order_by(func.count().desc(), Review.item_id)
+        ).all()
+    ]
+
+
+def _ctx_produtos(db: Session, loja: Shop, editando: ProductInfo | None = None, form: dict | None = None,
+                  erros: dict | None = None, aviso: str = "", aberto: bool = False) -> dict:
+    produtos = db.scalars(
+        select(ProductInfo).where(ProductInfo.shop_id == loja.id).order_by(ProductInfo.nome)
+    ).all()
+    if form is None:
+        form = {c: getattr(editando, c) for c, *_ in CAMPOS_PRODUTO} if editando else \
+            {c: "" for c, *_ in CAMPOS_PRODUTO}
+        form["item_id"] = str(editando.item_id) if editando else ""
+    return _contexto(
+        db, loja, "personalizacao",
+        aba="produtos", abas=ABAS, produtos=produtos, sem_cadastro=_produtos_sem_cadastro(db, loja),
+        campos_produto=CAMPOS_PRODUTO, editando=editando, form=form, erros=erros or {},
+        aviso=aviso, aberto=aberto or editando is not None or bool(erros),
+    )
+
+
+def _aba_produtos(request: Request, db: Session, loja: Shop, status_code: int = 200, **kw):
+    return templates.TemplateResponse(
+        request, "partials/aba_produtos.html", _ctx_produtos(db, loja, **kw), status_code=status_code
+    )
+
+
+def _produto_da_loja(db: Session, loja: Shop | None, produto_id: int) -> ProductInfo:
+    produto = db.get(ProductInfo, produto_id)
+    if loja is None or produto is None or produto.shop_id != loja.id:
+        raise HTTPException(status_code=404, detail="Produto não encontrado.")
+    return produto
+
+
+@router.get("/produtos")
+def produtos(request: Request, editar: int | None = None, item_id: str = "", nome: str = "",
+             db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
+    if loja is None:
+        return templates.TemplateResponse(request, "personalizacao.html", _contexto(db, None, "personalizacao"))
+    editando = _produto_da_loja(db, loja, editar) if editar else None
+    form = None
+    if item_id and not editando:  # "Cadastrar" a partir de um produto sem informações
+        form = {c: "" for c, *_ in CAMPOS_PRODUTO} | {"item_id": item_id, "nome": nome}
+    ctx = _ctx_produtos(db, loja, editando=editando, form=form, aberto=bool(item_id))
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse(request, "partials/aba_produtos.html", ctx)
+    return templates.TemplateResponse(request, "personalizacao.html", ctx)
+
+
+def _ler_form_produto(dados: dict) -> tuple[dict, dict]:
+    form = {c: (dados.get(c) or "").strip() for c, *_ in CAMPOS_PRODUTO}
+    form["item_id"] = (dados.get("item_id") or "").strip()
+    erros = {}
+    if not form["item_id"].isdigit() or int(form["item_id"]) <= 0:
+        erros["item_id"] = "Use o número do anúncio na Shopee (só dígitos)."
+    if not form["nome"]:
+        erros["nome"] = "Preencha o nome."
+    for c, *_ in CAMPOS_PRODUTO:
+        if len(form[c]) > MAX_CAMPO_PRODUTO:
+            erros[c] = f"Use no máximo {MAX_CAMPO_PRODUTO} caracteres."
+    return form, erros
+
+
+async def _dados_form(request: Request) -> dict:
+    return dict(await request.form())
+
+
+@router.post("/produtos")
+def salvar_produto(
+    request: Request,
+    dados: dict = Depends(_dados_form),
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+):
+    if loja is None:
+        raise HTTPException(status_code=404)
+    produto_id = dados.get("produto_id")
+    editando = _produto_da_loja(db, loja, int(produto_id)) if produto_id else None
+    form, erros = _ler_form_produto(dados)
+    if not erros:
+        outro = db.scalar(select(ProductInfo).where(
+            ProductInfo.shop_id == loja.id, ProductInfo.item_id == int(form["item_id"])))
+        if outro and outro is not editando:
+            erros["item_id"] = f"Este número já está cadastrado ({outro.nome})."
+    if erros:
+        return _aba_produtos(request, db, loja, status_code=422, editando=editando, form=form, erros=erros)
+
+    produto = editando or ProductInfo(shop_id=loja.id)
+    produto.item_id = int(form["item_id"])
+    for c, *_ in CAMPOS_PRODUTO:
+        setattr(produto, c, form[c])
+    if editando is None:
+        db.add(produto)
+    db.add(AuditLog(shop_id=loja.id, acao="produto_alterado" if editando else "produto_criado",
+                    autor=AUTOR_PAINEL, detalhes={"item_id": produto.item_id}))
+    db.commit()
+    return _aba_produtos(request, db, loja, aviso=f"{produto.nome}: informações salvas.")
+
+
+@router.post("/produtos/{produto_id}/excluir")
+def excluir_produto(produto_id: int, request: Request, db: Session = Depends(get_db),
+                    loja: Shop | None = Depends(loja_atual)):
+    produto = _produto_da_loja(db, loja, produto_id)
+    db.delete(produto)
+    db.add(AuditLog(shop_id=loja.id, acao="produto_excluido", autor=AUTOR_PAINEL,
+                    detalhes={"item_id": produto.item_id}))
+    db.commit()
+    return _aba_produtos(request, db, loja, aviso=f"{produto.nome} excluído.")

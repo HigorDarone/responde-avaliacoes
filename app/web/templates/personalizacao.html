@@ -31,6 +31,12 @@
     {% endfor %}
   </nav>
 
-  {% include "partials/regras.html" %}
+  {% if aba == "exemplos" %}
+    {% include "partials/aba_exemplos.html" %}
+  {% elif aba == "produtos" %}
+    {% include "partials/aba_produtos.html" %}
+  {% else %}
+    {% include "partials/regras.html" %}
+  {% endif %}
 {% endif %}
 {% endblock %}
