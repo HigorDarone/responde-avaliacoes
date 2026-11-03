@@ -1,6 +1,6 @@
 """Operações de banco usadas em mais de um lugar."""
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ReplyExample, Review, Shop, ShopSettings
@@ -23,6 +23,14 @@ def garantir_lojas_mock(session: Session, client) -> None:
         if buscar_loja_por_shopee_id(session, shopee_id) is None:
             criar_loja(session, f"Loja mock {shopee_id}", shopee_id)
     session.commit()
+
+
+def consulta_lojas_operaveis(usar_mock: bool) -> Select:
+    """Lojas ativas que o sistema consegue usar: com a Shopee real, só as conectadas."""
+    consulta = select(Shop).where(Shop.ativo.is_(True), Shop.shopee_shop_id.is_not(None))
+    if not usar_mock:
+        consulta = consulta.where(Shop.refresh_token.is_not(None))
+    return consulta
 
 
 def buscar_loja_por_shopee_id(session: Session, shopee_shop_id: int) -> Shop | None:

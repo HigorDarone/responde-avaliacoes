@@ -1,4 +1,4 @@
-﻿{% macro erro_de(campo) %}{% if erros.get(campo) %}<p class="erro-campo" role="alert">{{ erros[campo] }}</p>{% endif %}{% endmacro %}
+{% macro erro_de(campo) %}{% if erros.get(campo) %}<p class="erro-campo" role="alert">{{ erros[campo] }}</p>{% endif %}{% endmacro %}
 
 <div id="aba" class="aba">
   <div class="aba__intro">
@@ -6,7 +6,19 @@
       Sem cadastro, ela não inventa: perguntas sobre o produto vão para a fila como “Precisa de você”.</p>
   </div>
 
+  <section class="importar">
+    <div>
+      <p class="importar__titulo">Importar os anúncios da loja</p>
+      <p class="muted">Traz nome, material (se estiver no anúncio) e a descrição de cada anúncio ativo.
+        O que você escreveu à mão nunca é apagado.
+        {% if modo_shopee == "mock" %}<span class="pilula mono">modo de teste: produtos de exemplo</span>{% endif %}</p>
+    </div>
+    <button class="btn btn--primario" hx-post="/personalizacao/produtos/importar" hx-target="#aba"
+            hx-swap="outerHTML" hx-disabled-elt="this">Importar da Shopee</button>
+  </section>
+
   {% if aviso %}<p class="salvo" role="status">✓ {{ aviso }}</p>{% endif %}
+  {% if aviso_erro %}<p class="erro" role="alert">{{ aviso_erro }}</p>{% endif %}
 
   {% if sem_cadastro %}
     <section class="bloco faltando">
@@ -82,8 +94,17 @@
               <dt class="mono">{{ rotulo }}</dt><dd>{{ p[campo] }}</dd>
             {% endfor %}
           </dl>
+          {% if p.descricao_anuncio %}
+            <details class="produto__anuncio">
+              <summary class="mono">Descrição do anúncio na Shopee</summary>
+              <p>{{ p.descricao_anuncio }}</p>
+            </details>
+          {% endif %}
+          {% if not (p.normal_impressao_3d or p.cuidados) %}
+            <p class="produto__dica">Falta você contar o que é normal da impressão 3D e os cuidados de uso.</p>
+          {% endif %}
           <footer class="exemplo__rodape">
-            <span class="mono muted">Atualizado {{ p.atualizado_em | data_curta }}</span>
+            <span class="mono muted">{{ 'Importado ' ~ (p.importado_em | data_curta) if p.importado_em else 'Atualizado ' ~ (p.atualizado_em | data_curta) }}</span>
             <span class="exemplo__acoes">
               <a class="btn btn--contorno" href="/personalizacao/produtos?editar={{ p.id }}#form-produto"
                  hx-get="/personalizacao/produtos?editar={{ p.id }}" hx-target="#aba" hx-swap="outerHTML show:#form-produto:top">Editar</a>

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block titulo %}Conexão Shopee · Responde Avaliações{% endblock %}
+
+{% block conteudo %}
+<section class="titulo">
+  <div class="resumo">
+    <span class="pilula pilula--azul mono">
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 1 2 7h3.5L5 11l5-6H6.5z" fill="currentColor"/></svg>
+      Conexão Shopee
+    </span>
+    {% if settings.use_mock_shopee %}
+      <span class="pilula mono pilula--aviso">Modo de teste (mock)</span>
+    {% else %}
+      <span class="pilula mono {{ 'pilula--ok' if settings.shopee_env == 'live' else 'pilula--aviso' }}">
+        {{ 'Produção (live)' if settings.shopee_env == 'live' else 'Sandbox' }} · {{ settings.shopee_regiao | upper }}
+      </span>
+    {% endif %}
+  </div>
+  <h1>Sua loja<br><span class="apagado">conectada à Shopee</span></h1>
+  <p>Você autoriza na página oficial da Shopee; sua senha nunca passa por aqui.
+    O sistema guarda as chaves de acesso da loja e renova sozinho.</p>
+</section>
+
+{% if ok %}<p class="salvo" role="status">✓ Loja conectada! Agora o robô e a fila usam a Shopee de verdade.</p>{% endif %}
+{% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+
+<div class="conexao">
+  <section class="bloco">
+    <header class="bloco__topo">
+      <span class="mono muted">01</span>
+      <h2>Conectar uma loja</h2>
+    </header>
+    {% if bloqueio %}
+      <p class="bloco__ajuda">{{ bloqueio }}</p>
+      <ol class="passos">
+        <li>No <code>.env</code>, preencha <code>SHOPEE_PARTNER_ID</code> e <code>SHOPEE_PARTNER_KEY</code>
+          (no Console da Shopee, nos detalhes do app).</li>
+        <li>Ajuste <code>SHOPEE_ENV</code> (<code>sandbox</code> ou <code>live</code>) e
+          <code>USE_MOCK_SHOPEE=false</code>.</li>
+        <li>Reinicie o painel e volte aqui.</li>
+      </ol>
+    {% else %}
+      <p class="bloco__ajuda">Abre a página da Shopee. Entre com a <strong>conta da loja</strong> e clique em
+        Autorizar. Você volta para cá automaticamente.</p>
+      <p class="mono muted">Endereço de retorno: {{ settings.shopee_redirect_url }}</p>
+      <div><a class="btn btn--primario" href="/shopee/conectar">Conectar loja Shopee</a></div>
+    {% endif %}
+  </section>
+
+  <section class="bloco">
+    <header class="bloco__topo">
+      <span class="mono muted">02</span>
+      <h2>Lojas conectadas</h2>
+    </header>
+    {% if conectadas %}
+      <ul class="faltando__lista">
+        {% for s in conectadas %}
+          {% set expira = s.token_expira_em %}
+          <li>
+            <span>
+              <span class="faltando__nome">{{ s.nome }}</span>
+              <span class="mono muted">#{{ s.shopee_shop_id }} · chave renovada até {{ expira | data_hora }}</span>
+            </span>
+            <span class="pilula mono pilula--ok">Conectada</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="bloco__ajuda">Nenhuma loja conectada ainda.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

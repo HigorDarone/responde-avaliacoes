@@ -14,7 +14,7 @@ import logging
 
 from app.config import get_settings
 from app.db.base import get_session, init_db
-from app.db.repo import buscar_loja_por_shopee_id, garantir_lojas_mock
+from app.db.repo import consulta_lojas_operaveis, garantir_lojas_mock
 from app.shopee import get_shopee_client
 from app.shopee.mock_client import MockShopeeClient
 
@@ -95,10 +95,12 @@ def _listar(client, analisar: bool) -> None:
     if analisar:
         print(f"Modelo: {settings.claude_model}")
     with get_session() as session:
-        for shopee_id in client.lojas():
-            loja = buscar_loja_por_shopee_id(session, shopee_id)
+        lojas = session.scalars(consulta_lojas_operaveis(settings.use_mock_shopee)).all()
+        if not lojas:
+            print("\nNenhuma loja conectada. Abra o painel (python -m app web) > Conexão Shopee.")
+        for loja in lojas:
             chave = "Ligadas" if loja.settings.auto_publicar else "Desligadas"
-            comentarios = client.get_unreplied_comments(shopee_id)
+            comentarios = client.get_unreplied_comments(loja.shopee_shop_id)
             print(f"\n{loja.nome} — Respostas automáticas: {chave}")
             print(f"{len(comentarios)} avaliações sem resposta:\n")
             if analisar:

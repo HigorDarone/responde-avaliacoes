@@ -9,7 +9,9 @@ def get_shopee_client(settings: Settings | None = None) -> ShopeeClient:
         from app.shopee.mock_client import MockShopeeClient
 
         return MockShopeeClient(settings.mock_reviews_path)
-    raise NotImplementedError(
-        "O cliente real da Shopee ainda não foi implementado (passo 6). "
-        "Use USE_MOCK_SHOPEE=true por enquanto."
-    )
+
+    from app.db.base import get_session
+    from app.shopee.client import ShopeeRealClient
+    from app.shopee.tokens import TokensNoBanco
+
+    return ShopeeRealClient(settings, TokensNoBanco(get_session))

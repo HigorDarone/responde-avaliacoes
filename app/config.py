@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # Shopee
     shopee_env: Literal["sandbox", "live"] = "sandbox"
+    shopee_regiao: Literal["br", "global"] = "br"  # o Brasil tem página de autorização própria
     shopee_partner_id: str = ""
     shopee_partner_key: str = ""
     shopee_redirect_url: str = "http://localhost:8000/shopee/callback"

@@ -21,7 +21,7 @@ from app.ai.contexto import ContextoLoja
 from app.ai.custos import Uso, uso_da_resposta
 from app.ai.prompts import montar_system, render_mensagem
 from app.config import Settings, get_settings
-from app.shopee.base import ShopeeComment
+from app.shopee.base import LIMITE_RESPOSTA, ShopeeComment
 
 MAX_TOKENS = 2048  # o Haiku 5.5 pensa antes de responder, e o raciocínio conta aqui
 EFFORT = "medium"
@@ -238,6 +238,10 @@ def interpretar_resposta(resposta, modelo: str, contexto: ContextoLoja, lote: bo
         raise AnaliseError(f"JSON inválido do Claude: {e}") from e
 
     _checar_palavras_proibidas(analise, contexto.regras.palavras_proibidas)
+    if len(analise.resposta) > LIMITE_RESPOSTA:
+        analise.precisa_revisao = True
+        analise.motivo = (f"Precisa de você: a resposta passou de {LIMITE_RESPOSTA} caracteres, "
+                          f"o limite da Shopee. {analise.motivo}")
     return ResultadoAnalise(analise, "ia", uso_da_resposta(resposta.usage, modelo, lote))
 
 

@@ -1,4 +1,10 @@
-import pytest
+import os
+
+# Os testes nunca usam a Shopee real nem o .env do desenvolvedor para isso.
+os.environ["USE_MOCK_SHOPEE"] = "true"
+os.environ["SHOPEE_ENV"] = "sandbox"
+
+import pytest  # noqa: E402
 from sqlalchemy.orm import Session
 
 from app.config import RAIZ_PROJETO

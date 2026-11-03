@@ -25,6 +25,7 @@ passo conforme as regras da loja.
 - Nunca culpe o comprador, não discuta e não conteste a avaliação.
 - Siga o tom, o tamanho, o uso de emoji e a assinatura das regras da loja.
 - Não descreva fotos ou vídeos que você não recebeu.
+- A Shopee aceita no máximo 500 caracteres por resposta.
 
 ## Impressão 3D
 Linhas de camada leves e pequenas marcas de suporte são normais do processo de impressão 3D; \
@@ -117,6 +118,7 @@ def _render_produto(nome_na_avaliacao: str, produto: InfoProduto | None) -> str:
         ("Normal da impressão 3D", produto.normal_impressao_3d),
         ("Cuidados de uso", produto.cuidados),
         ("Observações", produto.observacoes),
+        ("Descrição do anúncio na Shopee", produto.descricao_anuncio),
     ]
     linhas = "\n".join(f"{rotulo}: {valor}" for rotulo, valor in campos if valor)
     return f"<produto>\n{linhas}\n</produto>"

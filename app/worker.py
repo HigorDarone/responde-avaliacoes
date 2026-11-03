@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.ai.analyzer import AnaliseError, AnaliseIA, Analisador, PedidoAnalise, ResultadoAnalise, precisa_ia
 from app.ai.contexto import carregar_contexto
 from app.config import Settings, get_settings
+from app.db.repo import consulta_lojas_operaveis
 from app.db.models import (
     AuditLog,
     DraftStatus,
@@ -105,9 +106,7 @@ class Robo:
 
     def executar_ciclo(self, session: Session) -> RelatorioCiclo:
         rel = RelatorioCiclo()
-        lojas = session.scalars(
-            select(Shop).where(Shop.ativo.is_(True), Shop.shopee_shop_id.is_not(None))
-        ).all()
+        lojas = session.scalars(consulta_lojas_operaveis(self.settings.use_mock_shopee)).all()
         for loja in lojas:
             try:
                 if self.modo_lote:

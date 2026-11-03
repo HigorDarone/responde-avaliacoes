@@ -15,7 +15,8 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 - [x] Passo 4 — robô (worker) com a regra de decisão (`app/worker.py`)
 - [ ] Passo 5 — painel web (5a, 5b, 5c e 5c2 feitos: layout, fila com aprovar/editar/descartar,
       interruptor, Personalização › Regras, Exemplos, Produtos, aprendizado pelas edições)
-- [ ] Passo 6 — cliente real da Shopee
+- [x] Passo 6 — cliente real da Shopee (assinatura, OAuth, tokens, avaliações, produtos) —
+      falta testar com uma loja de verdade
 - [ ] Passo 7 — quadros de vídeo
 
 ## Requisitos
@@ -92,6 +93,21 @@ chegam sozinhos: resposta **editada e publicada** vira exemplo, e o botão **"Ma
 ótima"** na fila também cria um. Em **Produtos** ficam material, tamanho, o que é normal da
 impressão 3D e cuidados de cada anúncio; a tela lista os produtos das avaliações que ainda
 não têm informações. Estilo em `referencias/estilo.md`.
+
+## Conectar a Shopee de verdade
+
+1. No `.env`: `USE_MOCK_SHOPEE=false`, `SHOPEE_ENV=live` (ou `sandbox`), `SHOPEE_REGIAO=br`,
+   `SHOPEE_PARTNER_ID` e `SHOPEE_PARTNER_KEY` (Console da Open Platform › detalhes do app).
+2. No Console, o **Redirect URL Domain** do app precisa aceitar o endereço de
+   `SHOPEE_REDIRECT_URL` (padrão `http://localhost:8000/shopee/callback`).
+3. `python -m app web` › **Conexão Shopee** › **Conectar loja Shopee** › entre com a conta da
+   loja na página da Shopee e autorize.
+4. Os tokens ficam na tabela de lojas e são renovados sozinhos (access_token vale 4 h,
+   refresh_token 30 dias; a autorização dura até 365 dias).
+
+Limites da API (documentação oficial): resposta de 1 a 500 caracteres e **não pode ser
+editada** depois de publicada. Em **Personalização › Produtos**, "Importar da Shopee" traz
+nome, material e descrição dos anúncios sem apagar o que você escreveu.
 
 > Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
 > para ele ser recriado.

@@ -228,6 +228,9 @@ class ProductInfo(Base):
     normal_impressao_3d: Mapped[str] = mapped_column(Text, default="")
     cuidados: Mapped[str] = mapped_column(Text, default="")
     observacoes: Mapped[str] = mapped_column(Text, default="")
+    # Vindo do anúncio na Shopee ("Importar da Shopee"). Nunca sobrescreve os campos acima.
+    descricao_anuncio: Mapped[str | None] = mapped_column(Text)
+    importado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=agora, onupdate=agora
     )

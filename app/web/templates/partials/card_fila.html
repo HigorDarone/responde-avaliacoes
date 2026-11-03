@@ -1,4 +1,4 @@
-﻿{% set cat = categorias.get(review.categoria, ("Outro", "")) %}
+{% set cat = categorias.get(review.categoria, ("Outro", "")) %}
 {% set editando = modo == "editar" %}
 {% set alvo = "#review-" ~ review.id %}
 {% set e_exemplo = (review | texto_avaliacao, texto | trim) in exemplos_salvos %}
@@ -47,7 +47,7 @@
   <form class="resposta" hx-post="/fila/{{ review.id }}/aprovar" hx-target="{{ alvo }}" hx-swap="outerHTML"
         hx-disabled-elt="find button" hx-disinherit="hx-disabled-elt">
     <label class="mono" for="resposta-{{ review.id }}">{{ 'Editando a resposta' if editando else 'Resposta sugerida' }}</label>
-    <textarea id="resposta-{{ review.id }}" name="texto" rows="4" maxlength="2000"
+    <textarea id="resposta-{{ review.id }}" name="texto" rows="4" maxlength="500"
               {% if not editando %}readonly{% endif %}
               {% if editando %}autofocus onfocus="this.setSelectionRange(this.value.length, this.value.length)"{% endif %}>{{ texto }}</textarea>
 

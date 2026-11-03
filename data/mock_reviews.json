@@ -139,6 +139,13 @@
           "midias": [],
           "resposta": "Que bom te ver de novo, Fernanda! Obrigado pela confiança no vaso."
         }
+      ],
+      "produtos": [
+        {"item_id": 5001, "nome": "Vaso Geométrico Low Poly 15cm", "descricao": "Vaso decorativo impresso em 3D, estilo low poly. Altura 15 cm. Material PLA fosco. Não é à prova d'água: use com plantas artificiais ou secas.", "atributos": {"Material": "PLA"}, "peso_kg": "0.12", "embalagem_cm": [18, 14, 14]},
+        {"item_id": 5002, "nome": "Suporte de Headset Gamer", "descricao": "Suporte de mesa para headset, impresso em 3D com base reforçada. Altura 26 cm.", "atributos": {"Material": "PETG"}, "peso_kg": "0.25", "embalagem_cm": [30, 15, 12]},
+        {"item_id": 5003, "nome": "Luminária Lua 3D 12cm", "descricao": "Luminária em formato de lua, 12 cm de diâmetro, luz LED quente, cabo USB.", "atributos": {}, "peso_kg": "0.15", "embalagem_cm": [15, 15, 15]},
+        {"item_id": 5004, "nome": "Miniatura Dragão Articulado 30cm", "descricao": "Dragão articulado impresso em peça única. 30 cm de comprimento. Pode ser pintado com tinta acrílica (recomendamos primer).", "atributos": {"Material": "PLA silk"}, "peso_kg": "0.08", "embalagem_cm": [25, 10, 6]},
+        {"item_id": 5005, "nome": "Organizador de Mesa Modular", "descricao": "", "atributos": {}, "peso_kg": "0.3", "embalagem_cm": [22, 16, 10]}
       ]
     }
   ]

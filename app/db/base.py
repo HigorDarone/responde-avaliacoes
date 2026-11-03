@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -52,4 +52,25 @@ def init_db(engine: Engine | None = None) -> None:
     # Importa os modelos para registrá-los no metadata.
     from app.db import models  # noqa: F401
 
-    Base.metadata.create_all(engine or get_engine())
+    engine = engine or get_engine()
+    Base.metadata.create_all(engine)
+    _adicionar_colunas_novas(engine)
+
+
+def _adicionar_colunas_novas(engine: Engine) -> None:
+    """Migração simples para mudanças só de acréscimo: cria colunas novas (opcionais)
+    em tabelas que já existem, sem perder dados. Mudanças maiores pedem Alembic.
+    """
+    inspetor = inspect(engine)
+    with engine.begin() as conn:
+        for tabela in Base.metadata.sorted_tables:
+            existentes = {c["name"] for c in inspetor.get_columns(tabela.name)}
+            for coluna in tabela.columns:
+                if coluna.name in existentes:
+                    continue
+                if not coluna.nullable:
+                    raise RuntimeError(
+                        f"Coluna obrigatória nova {tabela.name}.{coluna.name}: crie uma migração."
+                    )
+                tipo = coluna.type.compile(dialect=engine.dialect)
+                conn.execute(text(f'ALTER TABLE {tabela.name} ADD COLUMN "{coluna.name}" {tipo}'))

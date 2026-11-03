@@ -15,8 +15,11 @@ from sqlalchemy.orm import Session
 from app.ai.contexto import RegrasLoja
 from app.ai.prompts import render_regras_loja
 from app.db.models import AuditLog, OrigemExemplo, ProductInfo, ReplyExample, Review, Shop
+from app.config import get_settings
 from app.db.repo import exemplo_existente
-from app.web.routes import AUTOR_PAINEL, _contexto, get_db, loja_atual, templates
+from app.shopee.base import LIMITE_RESPOSTA, ShopeeClient, ShopeeError
+from app.shopee.importar import importar_produtos
+from app.web.routes import AUTOR_PAINEL, _contexto, get_db, get_shopee, loja_atual, templates
 
 router = APIRouter(prefix="/personalizacao")
 
@@ -331,11 +334,11 @@ def criar_exemplo(
         erros["categoria"] = "Escolha uma categoria."
     if sentimento not in dict(SENTIMENTOS):
         erros["sentimento"] = "Escolha um sentimento."
-    for campo in ("texto_avaliacao", "resposta_ideal"):
+    for campo, maximo in (("texto_avaliacao", MAX_TEXTO), ("resposta_ideal", LIMITE_RESPOSTA)):
         if not novo[campo]:
             erros[campo] = "Preencha este campo."
-        elif len(novo[campo]) > MAX_TEXTO:
-            erros[campo] = f"Use no máximo {MAX_TEXTO} caracteres."
+        elif len(novo[campo]) > maximo:
+            erros[campo] = f"Use no máximo {maximo} caracteres."
     if not erros and exemplo_existente(db, loja.id, novo["texto_avaliacao"], novo["resposta_ideal"]):
         erros["resposta_ideal"] = "Este exemplo já existe."
     if erros:
@@ -403,7 +406,8 @@ def _produtos_sem_cadastro(db: Session, loja: Shop) -> list[tuple[int, str, int]
 
 
 def _ctx_produtos(db: Session, loja: Shop, editando: ProductInfo | None = None, form: dict | None = None,
-                  erros: dict | None = None, aviso: str = "", aberto: bool = False) -> dict:
+                  erros: dict | None = None, aviso: str = "", aberto: bool = False,
+                  aviso_erro: str = "") -> dict:
     produtos = db.scalars(
         select(ProductInfo).where(ProductInfo.shop_id == loja.id).order_by(ProductInfo.nome)
     ).all()
@@ -415,7 +419,8 @@ def _ctx_produtos(db: Session, loja: Shop, editando: ProductInfo | None = None, 
         db, loja, "personalizacao",
         aba="produtos", abas=ABAS, produtos=produtos, sem_cadastro=_produtos_sem_cadastro(db, loja),
         campos_produto=CAMPOS_PRODUTO, editando=editando, form=form, erros=erros or {},
-        aviso=aviso, aberto=aberto or editando is not None or bool(erros),
+        aviso=aviso, aviso_erro=aviso_erro, aberto=aberto or editando is not None or bool(erros),
+        modo_shopee="mock" if get_settings().use_mock_shopee else get_settings().shopee_env,
     )
 
 
@@ -495,6 +500,27 @@ def salvar_produto(
                     autor=AUTOR_PAINEL, detalhes={"item_id": produto.item_id}))
     db.commit()
     return _aba_produtos(request, db, loja, aviso=f"{produto.nome}: informações salvas.")
+
+
+@router.post("/produtos/importar")
+def importar_da_shopee(request: Request, db: Session = Depends(get_db),
+                       loja: Shop | None = Depends(loja_atual),
+                       shopee: ShopeeClient = Depends(get_shopee)):
+    if loja is None:
+        raise HTTPException(status_code=404)
+    try:
+        r = importar_produtos(db, loja, shopee)
+    except ShopeeError as e:
+        db.rollback()
+        return _aba_produtos(request, db, loja, status_code=502,
+                             aviso_erro=f"Não foi possível importar da Shopee: {e}")
+    db.add(AuditLog(shop_id=loja.id, acao="produtos_importados", autor=AUTOR_PAINEL,
+                    detalhes={"criados": r.criados, "atualizados": r.atualizados}))
+    db.commit()
+    return _aba_produtos(request, db, loja, aviso=(
+        f"Importado da Shopee: {r.criados} {'novo' if r.criados == 1 else 'novos'}, "
+        f"{r.atualizados} {'atualizado' if r.atualizados == 1 else 'atualizados'}. "
+        "O que você escreveu à mão foi mantido."))
 
 
 @router.post("/produtos/{produto_id}/excluir")

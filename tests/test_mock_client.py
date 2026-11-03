@@ -73,7 +73,26 @@ def test_fabrica_usa_mock_quando_configurado():
     assert isinstance(get_shopee_client(s), MockShopeeClient)
 
 
-def test_fabrica_sem_mock_avisa_que_cliente_real_nao_existe():
-    s = Settings(_env_file=None, use_mock_shopee=False)
-    with pytest.raises(NotImplementedError):
+def test_fabrica_sem_mock_exige_credenciais():
+    s = Settings(_env_file=None, use_mock_shopee=False, shopee_partner_id="", shopee_partner_key="")
+    with pytest.raises(ShopeeError, match="SHOPEE_PARTNER_ID"):
         get_shopee_client(s)
+
+
+def test_fabrica_sem_mock_usa_cliente_real():
+    from app.shopee.client import ShopeeRealClient
+
+    s = Settings(_env_file=None, use_mock_shopee=False, shopee_partner_id="1", shopee_partner_key="k")
+    assert isinstance(get_shopee_client(s), ShopeeRealClient)
+
+
+def test_resposta_acima_de_500_caracteres(mock_client):
+    with pytest.raises(ShopeeError, match="500"):
+        mock_client.reply_comment(LOJA, 9000001, "x" * 501)
+    mock_client.reply_comment(LOJA, 9000001, "x" * 500)
+
+
+def test_mock_tem_produtos(mock_client):
+    itens = mock_client.get_items(LOJA)
+    assert len(itens) == 5
+    assert itens[0].atributos == {"Material": "PLA"} and itens[0].embalagem_cm == (18, 14, 14)

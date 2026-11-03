@@ -56,6 +56,7 @@ class InfoProduto:
     normal_impressao_3d: str = ""
     cuidados: str = ""
     observacoes: str = ""
+    descricao_anuncio: str = ""
 
 
 @dataclass
@@ -100,6 +101,7 @@ def carregar_contexto(
             normal_impressao_3d=produto.normal_impressao_3d,
             cuidados=produto.cuidados,
             observacoes=produto.observacoes,
+            descricao_anuncio=produto.descricao_anuncio or "",
         )
         if produto
         else None

@@ -28,9 +28,10 @@ from app.db.models import (
     ReviewStatus,
     Shop,
 )
-from app.db.repo import salvar_exemplo_da_review, texto_da_avaliacao
+from app.config import get_settings
+from app.db.repo import consulta_lojas_operaveis, salvar_exemplo_da_review, texto_da_avaliacao
 from app.shopee import get_shopee_client
-from app.shopee.base import ShopeeClient, ShopeeError
+from app.shopee.base import LIMITE_RESPOSTA, ShopeeClient, ShopeeError
 
 AUTOR_PAINEL = "painel"  # vira o nome do usuário quando houver login
 BRASILIA = timezone(timedelta(hours=-3))  # sem horário de verão desde 2019
@@ -92,7 +93,7 @@ def get_db() -> Iterator[Session]:
 
 
 def loja_atual(db: Session = Depends(get_db)) -> Shop | None:
-    return db.scalar(select(Shop).where(Shop.ativo.is_(True)).order_by(Shop.id))
+    return db.scalar(consulta_lojas_operaveis(get_settings().use_mock_shopee).order_by(Shop.id))
 
 
 def _ultima_alteracao_chave(db: Session, loja: Shop) -> AuditLog | None:
@@ -267,6 +268,14 @@ def _ja_tratada(request, db, loja, review, draft):
     return _card(request, db, loja, review, draft, status_code=409)
 
 
+def _erro_no_texto(texto: str) -> str:
+    if not texto:
+        return "A resposta não pode ficar vazia."
+    if len(texto) > LIMITE_RESPOSTA:
+        return f"A Shopee aceita no máximo {LIMITE_RESPOSTA} caracteres (agora são {len(texto)})."
+    return ""
+
+
 def _guardar_texto(draft: ReplyDraft, texto: str) -> None:
     draft.texto_final = texto
     draft.editado = texto != draft.texto_ia.strip()
@@ -296,9 +305,9 @@ def salvar(
     if draft.status != DraftStatus.PENDENTE:
         return _ja_tratada(request, db, loja, review, draft)
     texto = texto.strip()
-    if not texto:
+    if erro := _erro_no_texto(texto):
         return _card(request, db, loja, review, draft, modo="editar", texto=texto,
-                     erro="A resposta não pode ficar vazia.", status_code=422)
+                     erro=erro, status_code=422)
     _guardar_texto(draft, texto)
     db.commit()
     return _card(request, db, loja, review, draft)
@@ -317,9 +326,9 @@ def aprovar(
     if review.status != ReviewStatus.NA_FILA or draft.status != DraftStatus.PENDENTE:
         return _ja_tratada(request, db, loja, review, draft)
     texto = texto.strip()
-    if not texto:
+    if erro := _erro_no_texto(texto):
         return _card(request, db, loja, review, draft, modo="editar", texto=texto,
-                     erro="A resposta não pode ficar vazia.", status_code=422)
+                     erro=erro, status_code=422)
 
     try:
         shopee.reply_comment(loja.shopee_shop_id, review.comment_id, texto)
