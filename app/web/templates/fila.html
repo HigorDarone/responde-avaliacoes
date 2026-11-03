@@ -17,18 +17,15 @@
       </span>
       <span class="pilula mono">{{ loja.nome }}</span>
     </div>
-    {% if itens %}
-      <h1>{{ itens | length }} {{ 'resposta' if itens | length == 1 else 'respostas' }}<br><span class="apagado">esperando você</span></h1>
-      <p>Confira a resposta sugerida, ajuste se quiser e publique.
-        {% if revisao %}<strong>{{ revisao }}</strong> {{ 'precisa' if revisao == 1 else 'precisam' }} da sua atenção e {{ 'aparece' if revisao == 1 else 'aparecem' }} primeiro.{% endif %}</p>
-    {% else %}
-      <h1>Fila vazia<br><span class="apagado">tudo respondido</span></h1>
-    {% endif %}
+    {% include "partials/resumo_fila.html" %}
   </section>
 
   {% if itens %}
     <div class="fila">
-      {% for review, draft in itens %}{% include "partials/card_fila.html" %}{% endfor %}
+      {% for review, draft in itens %}
+        {% set modo = "ver" %}{% set erro = "" %}{% set texto = draft.texto_final or draft.texto_ia %}
+        {% include "partials/card_fila.html" %}
+      {% endfor %}
     </div>
   {% else %}
     <div class="vazio">

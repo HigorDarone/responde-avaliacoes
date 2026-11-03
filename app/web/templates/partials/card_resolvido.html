@@ -1,0 +1,32 @@
+{# Card depois da ação: publicado (definitivo) ou descartado (dá para desfazer). #}
+{% set publicada = draft.status == "publicado" %}
+<article class="card card--resolvido {{ 'card--publicada' if publicada else 'card--descartada' }}" id="review-{{ review.id }}">
+  <div class="resolvido__topo">
+    {% if publicada %}
+      <span class="pilula mono pilula--ok">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Publicada
+      </span>
+    {% else %}
+      <span class="pilula mono">Descartada</span>
+    {% endif %}
+    <span class="card__produto-mini">{{ review.produto_nome }} · {{ review.estrelas }}★</span>
+  </div>
+
+  {% if publicada %}
+    <p class="resolvido__texto">{{ draft.texto_final }}</p>
+    <p class="mono muted resolvido__meta">
+      {{ 'Editada e publicada' if draft.editado else 'Publicada' }} por {{ draft.publicado_por_usuario or draft.publicado_por }}
+      em {{ draft.publicado_em | data_hora }}
+    </p>
+  {% else %}
+    <div class="resolvido__linha">
+      <p class="muted">A avaliação saiu da fila e não será respondida.</p>
+      <button class="btn btn--contorno" hx-post="/fila/{{ review.id }}/desfazer"
+              hx-target="#review-{{ review.id }}" hx-swap="outerHTML" hx-disabled-elt="this">
+        Desfazer
+      </button>
+    </div>
+  {% endif %}
+</article>
+{% if atualizar_resumo %}{% include "partials/resumo_fila.html" %}{% endif %}

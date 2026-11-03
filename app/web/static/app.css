@@ -325,9 +325,36 @@ dialog li + li { margin-top: 6px; }
 }
 .resposta textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 
-.card__acoes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.resposta textarea[readonly] { background: transparent; cursor: default; }
+.resposta textarea[readonly]:focus { border-color: var(--line); box-shadow: none; }
+.card--editando .resposta textarea { background: #fff; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+
+.card__acoes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
 .card__acoes .btn--primario { margin-right: auto; }
-.card__nota { width: 100%; color: var(--oat); font-size: 10px; }
+.btn.htmx-request, .btn[disabled] { opacity: 0.55; cursor: progress; }
+
+.erro {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--err-bg);
+  color: var(--err);
+  font-size: 14px;
+}
+
+/* Card depois da ação */
+.card--resolvido { gap: 10px; padding: 18px 24px; box-shadow: none; animation: encolher 0.25s ease-out; }
+.card--publicada { background: color-mix(in srgb, var(--ok-bg) 35%, var(--surface)); }
+.card--descartada { background: transparent; border-style: dashed; border-color: var(--oat); }
+.resolvido__topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card__produto-mini { color: var(--muted); font-size: 14px; }
+.resolvido__texto { margin: 0; font-size: 15px; line-height: 1.45; }
+.resolvido__meta { margin: 0; font-size: 10px; }
+.resolvido__linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.resolvido__linha p { margin: 0; font-size: 14px; }
+
+@keyframes encolher { from { opacity: 0.4; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .card--resolvido { animation: none; } }
 
 .vazio {
   padding: 64px 24px;

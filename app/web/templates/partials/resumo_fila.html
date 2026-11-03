@@ -1,0 +1,10 @@
+{# Título com a contagem. Nas respostas das ações vai com hx-swap-oob para se atualizar sozinho. #}
+<div id="resumo-fila" {% if atualizar_resumo %}hx-swap-oob="true"{% endif %}>
+  {% if itens %}
+    <h1>{{ itens | length }} {{ 'resposta' if itens | length == 1 else 'respostas' }}<br><span class="apagado">esperando você</span></h1>
+    <p>Confira a resposta sugerida, ajuste se quiser e publique.
+      {% if revisao %}<strong>{{ revisao }}</strong> {{ 'precisa' if revisao == 1 else 'precisam' }} da sua atenção e {{ 'aparece' if revisao == 1 else 'aparecem' }} primeiro.{% endif %}</p>
+  {% else %}
+    <h1>Fila vazia<br><span class="apagado">tudo respondido</span></h1>
+  {% endif %}
+</div>

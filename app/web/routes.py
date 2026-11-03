@@ -1,4 +1,4 @@
-"""Painel web: fila de aprovação e interruptor "Respostas automáticas".
+"""Painel web: fila de aprovação (aprovar, editar, descartar) e interruptor "Respostas automáticas".
 
 Ainda sem login (etapa 5f): o painel mostra a primeira loja ativa e registra as ações
 com o autor "painel".
@@ -8,14 +8,18 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from functools import lru_cache
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.base import get_session
-from app.db.models import AuditLog, DraftStatus, ReplyDraft, Review, ReviewStatus, Shop
+from app.db.models import AuditLog, DraftStatus, PublicadoPor, ReplyDraft, Review, ReviewStatus, Shop
+from app.shopee import get_shopee_client
+from app.shopee.base import ShopeeClient, ShopeeError
 
 AUTOR_PAINEL = "painel"  # vira o nome do usuário quando houver login
 BRASILIA = timezone(timedelta(hours=-3))  # sem horário de verão desde 2019
@@ -105,31 +109,38 @@ def inicio():
     return RedirectResponse("/fila", status_code=302)
 
 
-@router.get("/fila")
-def fila(request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
-    itens: list[tuple[Review, ReplyDraft]] = []
-    if loja:
-        itens = list(
-            db.execute(
-                select(Review, ReplyDraft)
-                .join(ReplyDraft, ReplyDraft.review_id == Review.id)
-                .where(
-                    Review.shop_id == loja.id,
-                    Review.status == ReviewStatus.NA_FILA,
-                    ReplyDraft.status == DraftStatus.PENDENTE,
-                )
-                # Primeiro o que precisa de você, depois o mais grave, depois o mais antigo.
-                .order_by(
-                    Review.precisa_revisao.desc(),
-                    Review.gravidade.desc(),
-                    Review.avaliado_em,
-                    Review.id,
-                )
+def _pendentes(db: Session, loja: Shop | None) -> list[tuple[Review, ReplyDraft]]:
+    if loja is None:
+        return []
+    return list(
+        db.execute(
+            select(Review, ReplyDraft)
+            .join(ReplyDraft, ReplyDraft.review_id == Review.id)
+            .where(
+                Review.shop_id == loja.id,
+                Review.status == ReviewStatus.NA_FILA,
+                ReplyDraft.status == DraftStatus.PENDENTE,
+            )
+            # Primeiro o que precisa de você, depois o mais grave, depois o mais antigo.
+            .order_by(
+                Review.precisa_revisao.desc(),
+                Review.gravidade.desc(),
+                Review.avaliado_em,
+                Review.id,
             )
         )
-    revisao = sum(1 for r, _ in itens if r.precisa_revisao)
+    )
+
+
+def _contexto_resumo(db: Session, loja: Shop | None) -> dict:
+    itens = _pendentes(db, loja)
+    return {"itens": itens, "revisao": sum(1 for r, _ in itens if r.precisa_revisao)}
+
+
+@router.get("/fila")
+def fila(request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
     return templates.TemplateResponse(
-        request, "fila.html", _contexto(db, loja, "fila", itens=itens, revisao=revisao)
+        request, "fila.html", _contexto(db, loja, "fila", **_contexto_resumo(db, loja))
     )
 
 
@@ -159,3 +170,147 @@ def ligar_auto_publicar(request: Request, db: Session = Depends(get_db), loja: S
 @router.post("/loja/auto-publicar/desligar")
 def desligar_auto_publicar(request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
     return _alterar_chave(request, db, loja, False)
+
+
+# --- Ações da fila (HTMX: cada uma devolve o card atualizado) ---
+
+
+@lru_cache
+def _shopee_padrao() -> ShopeeClient:
+    # Uma instância por processo: o mock guarda as respostas em memória.
+    return get_shopee_client()
+
+
+def get_shopee() -> ShopeeClient:
+    return _shopee_padrao()
+
+
+def _item(db: Session, loja: Shop | None, review_id: int) -> tuple[Review, ReplyDraft]:
+    """A avaliação da loja atual e o rascunho mais recente dela."""
+    review = db.get(Review, review_id)
+    if loja is None or review is None or review.shop_id != loja.id:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada.")
+    draft = db.scalar(
+        select(ReplyDraft).where(ReplyDraft.review_id == review.id).order_by(ReplyDraft.id.desc())
+    )
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Avaliação sem resposta sugerida.")
+    return review, draft
+
+
+def _card(request: Request, db: Session, loja: Shop, review: Review, draft: ReplyDraft,
+          modo: str = "ver", erro: str = "", texto: str | None = None, status_code: int = 200):
+    pendente = review.status == ReviewStatus.NA_FILA and draft.status == DraftStatus.PENDENTE
+    template = "partials/card_fila.html" if pendente else "partials/card_resolvido.html"
+    ctx = _contexto(
+        db, loja, "fila", review=review, draft=draft, modo=modo, erro=erro,
+        texto=texto if texto is not None else (draft.texto_final or draft.texto_ia),
+        atualizar_resumo=True, **_contexto_resumo(db, loja),
+    )
+    return templates.TemplateResponse(request, template, ctx, status_code=status_code)
+
+
+def _ja_tratada(request, db, loja, review, draft):
+    return _card(request, db, loja, review, draft, status_code=409)
+
+
+def _guardar_texto(draft: ReplyDraft, texto: str) -> None:
+    draft.texto_final = texto
+    draft.editado = texto != draft.texto_ia.strip()
+
+
+@router.get("/fila/{review_id}/card")
+def card(review_id: int, request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
+    review, draft = _item(db, loja, review_id)
+    return _card(request, db, loja, review, draft)
+
+
+@router.get("/fila/{review_id}/editar")
+def editar(review_id: int, request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
+    review, draft = _item(db, loja, review_id)
+    return _card(request, db, loja, review, draft, modo="editar")
+
+
+@router.post("/fila/{review_id}/salvar")
+def salvar(
+    review_id: int,
+    request: Request,
+    texto: str = Form(""),
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+):
+    review, draft = _item(db, loja, review_id)
+    if draft.status != DraftStatus.PENDENTE:
+        return _ja_tratada(request, db, loja, review, draft)
+    texto = texto.strip()
+    if not texto:
+        return _card(request, db, loja, review, draft, modo="editar", texto=texto,
+                     erro="A resposta não pode ficar vazia.", status_code=422)
+    _guardar_texto(draft, texto)
+    db.commit()
+    return _card(request, db, loja, review, draft)
+
+
+@router.post("/fila/{review_id}/aprovar")
+def aprovar(
+    review_id: int,
+    request: Request,
+    texto: str = Form(""),
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+    shopee: ShopeeClient = Depends(get_shopee),
+):
+    review, draft = _item(db, loja, review_id)
+    if review.status != ReviewStatus.NA_FILA or draft.status != DraftStatus.PENDENTE:
+        return _ja_tratada(request, db, loja, review, draft)
+    texto = texto.strip()
+    if not texto:
+        return _card(request, db, loja, review, draft, modo="editar", texto=texto,
+                     erro="A resposta não pode ficar vazia.", status_code=422)
+
+    try:
+        shopee.reply_comment(loja.shopee_shop_id, review.comment_id, texto)
+    except ShopeeError as e:
+        db.add(AuditLog(shop_id=loja.id, acao="falha_publicacao", autor=AUTOR_PAINEL,
+                        detalhes={"review_id": review.id, "erro": str(e)}))
+        db.commit()
+        return _card(request, db, loja, review, draft, texto=texto, status_code=502,
+                     erro=f"A Shopee não aceitou a resposta: {e}. Nada foi publicado; tente de novo.")
+
+    _guardar_texto(draft, texto)
+    draft.status = DraftStatus.PUBLICADO
+    draft.publicado_por = PublicadoPor.HUMANO
+    draft.publicado_por_usuario = AUTOR_PAINEL
+    draft.publicado_em = datetime.now(UTC)
+    review.status = ReviewStatus.PUBLICADA
+    db.add(AuditLog(shop_id=loja.id, acao="resposta_publicada", autor=AUTOR_PAINEL,
+                    detalhes={"review_id": review.id, "comment_id": review.comment_id,
+                              "editada": draft.editado}))
+    db.commit()
+    return _card(request, db, loja, review, draft)
+
+
+@router.post("/fila/{review_id}/descartar")
+def descartar(review_id: int, request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
+    review, draft = _item(db, loja, review_id)
+    if review.status != ReviewStatus.NA_FILA or draft.status != DraftStatus.PENDENTE:
+        return _ja_tratada(request, db, loja, review, draft)
+    draft.status = DraftStatus.DESCARTADO
+    review.status = ReviewStatus.DESCARTADA
+    db.add(AuditLog(shop_id=loja.id, acao="resposta_descartada", autor=AUTOR_PAINEL,
+                    detalhes={"review_id": review.id}))
+    db.commit()
+    return _card(request, db, loja, review, draft)
+
+
+@router.post("/fila/{review_id}/desfazer")
+def desfazer_descarte(review_id: int, request: Request, db: Session = Depends(get_db), loja: Shop | None = Depends(loja_atual)):
+    review, draft = _item(db, loja, review_id)
+    if review.status != ReviewStatus.DESCARTADA or draft.status != DraftStatus.DESCARTADO:
+        return _ja_tratada(request, db, loja, review, draft)
+    draft.status = DraftStatus.PENDENTE
+    review.status = ReviewStatus.NA_FILA
+    db.add(AuditLog(shop_id=loja.id, acao="descarte_desfeito", autor=AUTOR_PAINEL,
+                    detalhes={"review_id": review.id}))
+    db.commit()
+    return _card(request, db, loja, review, draft)

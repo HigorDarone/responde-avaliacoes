@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Inter+Tight:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+  {# Erros de validação (422), conflito (409) e falha da Shopee (502) também trocam o card,
+     para a mensagem aparecer; 404 não troca nada. #}
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"404","swap":false,"error":true},{"code":"[45]..","swap":true,"error":true}]}'>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
 </head>
 <body>

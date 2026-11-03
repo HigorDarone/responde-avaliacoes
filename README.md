@@ -13,7 +13,7 @@ A especificação completa está em [CLAUDE.md](CLAUDE.md).
 - [x] Passo 2 — cliente falso da Shopee (`app/shopee/mock_client.py`) + `data/mock_reviews.json`
 - [x] Passo 3 — análise com o Claude (`app/ai/`)
 - [x] Passo 4 — robô (worker) com a regra de decisão (`app/worker.py`)
-- [ ] Passo 5 — painel web (5a feito: layout, fila de aprovação, interruptor)
+- [ ] Passo 5 — painel web (5a e 5b feitos: layout, fila com aprovar/editar/descartar, interruptor)
 - [ ] Passo 6 — cliente real da Shopee
 - [ ] Passo 7 — quadros de vídeo
 
@@ -76,7 +76,10 @@ python -m app web                # painel em http://localhost:8000
 ```
 
 Fila de aprovação e interruptor "Respostas automáticas" (ligar pede confirmação;
-desligar é imediato; tudo fica registrado no histórico). Estilo em `referencias/estilo.md`.
+desligar é imediato; tudo fica registrado no histórico). Em cada card:
+**Aprovar e publicar** (publica o texto como está no campo), **Editar** (abre o texto;
+Salvar guarda sem publicar) e **Descartar** (tira da fila, com Desfazer). A versão da IA e
+a versão final ficam guardadas no rascunho. Estilo em `referencias/estilo.md`.
 
 > Ao mudar os modelos do banco nesta fase (sem migrações ainda), apague `data/app.db`
 > para ele ser recriado.
