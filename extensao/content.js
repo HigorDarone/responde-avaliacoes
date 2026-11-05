@@ -125,8 +125,28 @@
     };
   }
 
+  // Depois de responder, o cartão continua na lista com o botão "Responder" desativado
+  // (conferido em 05/11/2026): botão desativado = já respondida.
   function botaoResponder(cartao) {
-    return [...cartao.querySelectorAll("button")].find((b) => b.innerText.trim() === "Responder");
+    const b = cartao.querySelector('button[data-testid="reply-button"]')
+      || [...cartao.querySelectorAll("button")].find((x) => x.innerText.trim() === "Responder");
+    return b && !b.disabled && !b.classList.contains("disabled") ? b : null;
+  }
+
+  function jaTemResposta(cartao) {
+    return /Resposta do Vendedor/i.test(cartao.innerText);
+  }
+
+  // A Shopee mostra "Enviado com Sucesso!" num aviso com botão "Fechar".
+  function avisoDeSucesso() {
+    return [...document.querySelectorAll(".eds-modal__mask, [role='dialog']")]
+      .find((m) => /Enviado com Sucesso/i.test(m.innerText));
+  }
+
+  function fecharAvisoDeSucesso() {
+    const aviso = avisoDeSucesso();
+    const fechar = aviso && [...aviso.querySelectorAll("button")].find((b) => b.innerText.trim() === "Fechar");
+    if (fechar) fechar.click();
   }
 
   async function filtrarParaResponder() {
@@ -257,13 +277,17 @@
     if (!enviar || enviar.disabled) return { ok: false, erro: "Botão Enviar indisponível." };
     enviar.click();
 
-    const fechou = await esperar(() => !document.body.contains(caixa) || caixa.offsetParent === null, 15000);
-    if (!fechou) {
-      return { ok: false, erro: mensagemVisivel() || "A caixa não fechou depois de enviar." };
-    }
-    await dormir(2000);
-    const ainda = cartoes().find((c) => mesmoItem(c, envio));
-    if (ainda && botaoResponder(ainda)) {
+    // Confirmação: aviso "Enviado com Sucesso!", ou o cartão já mostra a resposta / botão desativado.
+    const confirmado = () => {
+      if (avisoDeSucesso()) return true;
+      const c = cartoes().find((x) => mesmoItem(x, envio));
+      return !c || jaTemResposta(c) || !botaoResponder(c);
+    };
+    const fechou = await esperar(() => (!document.body.contains(caixa) || caixa.offsetParent === null) && confirmado(), 15000);
+    await dormir(800);
+    const ok = !!fechou || confirmado();
+    fecharAvisoDeSucesso();
+    if (!ok) {
       return { ok: false, erro: mensagemVisivel() || "A Shopee não confirmou o envio." };
     }
     return { ok: true };
