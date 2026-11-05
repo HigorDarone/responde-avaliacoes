@@ -54,9 +54,23 @@
     return /255,\s*191,\s*0/.test(getComputedStyle(svg).color);
   }
 
-  // As estrelas vêm em duas camadas (cinza por baixo, dourada por cima, cortada na nota).
-  // Conta as douradas que ficam realmente visíveis.
+  // Cada estrela tem uma camada dourada (.eds-react-rate-star__front) com a largura
+  // preenchida em style (ex.: "width: 100%"); estrela vazia vem sem largura.
+  // Conferido no Seller Center em 05/11/2026.
   function estrelasDe(col) {
+    const frentes = [...col.querySelectorAll(".eds-react-rate-star__front")];
+    if (frentes.length) {
+      const total = frentes.reduce((soma, f) => {
+        const m = (f.getAttribute("style") || "").match(/width:\s*([\d.]+)%/);
+        return soma + (m ? Number(m[1]) / 100 : 0);
+      }, 0);
+      return Math.min(5, Math.max(1, Math.round(total)));
+    }
+    return estrelasPelaGeometria(col);
+  }
+
+  // Plano B, se a Shopee mudar as classes: conta as douradas realmente visíveis.
+  function estrelasPelaGeometria(col) {
     const svgs = [...col.querySelectorAll("svg")];
     const douradas = svgs.filter(dourada);
     if (douradas.length === svgs.length) return Math.min(5, Math.max(1, douradas.length));
@@ -101,6 +115,7 @@
   }
 
   async function filtrarParaResponder() {
+    if (new URLSearchParams(location.search).get("replied") === "TO_REPLY") return; // já filtrado
     const filtro = [...document.querySelectorAll("button, div, span")].find(
       (e) => e.childElementCount <= 2 && /^Para Responder/.test(e.textContent.trim())
     );

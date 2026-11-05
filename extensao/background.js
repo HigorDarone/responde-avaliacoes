@@ -3,7 +3,10 @@
 // 2) manda para o painel, que analisa com a IA e decide (elogio + chave ligada = publicar);
 // 3) busca as respostas aprovadas e publica uma por vez, devagar, confirmando cada uma.
 
-const URL_AVALIACOES = "https://seller.shopee.com.br/portal/settings/shop/rating";
+// Já abre filtrado em "Para Responder", com todas as estrelas.
+const URL_AVALIACOES =
+  "https://seller.shopee.com.br/portal/settings/shop/rating?pageNumber=1&fromPageNumber=1&cursor=0" +
+  "&pageSize=20&replied=TO_REPLY&ratingStar=ALL&ratingStar=5&ratingStar=4&ratingStar=3&ratingStar=2&ratingStar=1";
 const PADRAO = { painel: "http://localhost:8000", chave: "", ativo: true, intervalo: 30 };
 const PAUSA_ENTRE_ENVIOS_MS = 12000;
 const ESPERA_ANALISE_MS = 45000;
