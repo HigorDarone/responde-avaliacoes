@@ -25,6 +25,40 @@
 {% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
 
 <div class="conexao">
+  <section class="bloco bloco--extensao" id="extensao">
+    <header class="bloco__topo">
+      <span class="mono muted">★</span>
+      <h2>Extensão do Chrome <span class="pilula mono {{ 'pilula--ok' if settings.use_extensao else '' }}">{{ 'ativa' if settings.use_extensao else 'desligada' }}</span></h2>
+    </header>
+    <p class="bloco__ajuda">Para quem <strong>não tem acesso à API oficial</strong> (por exemplo, loja só com CPF).
+      A extensão lê as avaliações do Seller Center aberto no seu Chrome, manda para cá e publica as respostas
+      aprovadas. Elogios saem sozinhos só com <strong>Respostas automáticas ligadas</strong>; reclamações sempre
+      esperam você aprovar na fila.</p>
+    <p class="aviso-risco">Fora da forma oficial da Shopee: automatizar o Seller Center pode ir contra os termos de uso.
+      O risco é pequeno, mas existe e é da sua conta.</p>
+    {% if nova_chave %}
+      <div class="chave-nova">
+        <p class="mono">Copie agora (ela não aparece de novo)</p>
+        <code id="chave-extensao">{{ nova_chave }}</code>
+        <button class="btn btn--contorno" type="button"
+                onclick="navigator.clipboard.writeText(document.getElementById('chave-extensao').textContent); this.textContent='Copiada ✓'">Copiar chave</button>
+      </div>
+    {% endif %}
+    <ol class="passos">
+      <li>No <code>.env</code>, use <code>USE_EXTENSAO=true</code> e reinicie o painel.</li>
+      <li>No Chrome, abra <code>chrome://extensions</code>, ligue o <strong>Modo do desenvolvedor</strong> e clique em
+        <strong>Carregar sem compactação</strong>, escolhendo a pasta <code>extensao</code> do projeto.</li>
+      <li>Nas opções da extensão, coloque o endereço do painel (<code>{{ url_painel }}</code>) e a chave abaixo.</li>
+      <li>Deixe uma aba do Seller Center logada. A extensão passa a cada 30 minutos (ou clique em “Rodar agora”).</li>
+    </ol>
+    <form method="post" action="/shopee/extensao/chave">
+      <button class="btn {{ 'btn--contorno' if loja and loja.extensao_token else 'btn--primario' }}" type="submit"
+              {% if loja and loja.extensao_token %}onclick="return confirm('Gerar outra chave? A anterior para de funcionar.')"{% endif %}>
+        {{ 'Gerar nova chave' if loja and loja.extensao_token else 'Gerar chave da extensão' }}
+      </button>
+    </form>
+  </section>
+
   <section class="bloco">
     <header class="bloco__topo">
       <span class="mono muted">01</span>

@@ -28,8 +28,9 @@ from app.db.models import (
     ReviewStatus,
     Shop,
 )
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db.repo import consulta_lojas_operaveis, salvar_exemplo_da_review, texto_da_avaliacao
+from app.envio import enfileirar_envio
 from app.shopee import get_shopee_client
 from app.shopee.base import LIMITE_RESPOSTA, ShopeeClient, ShopeeError
 
@@ -92,8 +93,17 @@ def get_db() -> Iterator[Session]:
         yield session
 
 
-def loja_atual(db: Session = Depends(get_db)) -> Shop | None:
-    return db.scalar(consulta_lojas_operaveis(get_settings().use_mock_shopee).order_by(Shop.id))
+def get_config() -> Settings:
+    return get_settings()
+
+
+def loja_atual(db: Session = Depends(get_db), settings: Settings = Depends(get_config)) -> Shop | None:
+    consulta = consulta_lojas_operaveis(settings.use_mock_shopee, settings.use_extensao)
+    loja = db.scalar(consulta.order_by(Shop.id))
+    if loja is None and settings.use_extensao:
+        # Antes de gerar a chave da extensão, mostra a primeira loja ativa.
+        loja = db.scalar(select(Shop).where(Shop.ativo.is_(True)).order_by(Shop.id))
+    return loja
 
 
 def _ultima_alteracao_chave(db: Session, loja: Shop) -> AuditLog | None:
@@ -321,6 +331,7 @@ def aprovar(
     db: Session = Depends(get_db),
     loja: Shop | None = Depends(loja_atual),
     shopee: ShopeeClient = Depends(get_shopee),
+    settings: Settings = Depends(get_config),
 ):
     review, draft = _item(db, loja, review_id)
     if review.status != ReviewStatus.NA_FILA or draft.status != DraftStatus.PENDENTE:
@@ -329,6 +340,17 @@ def aprovar(
     if erro := _erro_no_texto(texto):
         return _card(request, db, loja, review, draft, modo="editar", texto=texto,
                      erro=erro, status_code=422)
+
+    if settings.use_extensao:
+        # Sem API: aprovada aqui, publicada pela extensão do Chrome na próxima passada.
+        _guardar_texto(draft, texto)
+        enfileirar_envio(review, draft, texto, PublicadoPor.HUMANO, AUTOR_PAINEL)
+        if draft.editado:
+            salvar_exemplo_da_review(db, review, texto, OrigemExemplo.EDICAO)
+        db.add(AuditLog(shop_id=loja.id, acao="resposta_aprovada", autor=AUTOR_PAINEL,
+                        detalhes={"review_id": review.id, "via": "extensao", "editada": draft.editado}))
+        db.commit()
+        return _card(request, db, loja, review, draft)
 
     try:
         shopee.reply_comment(loja.shopee_shop_id, review.comment_id, texto)

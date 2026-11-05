@@ -582,6 +582,11 @@ details.novo summary .mono {
 .produto__anuncio p { margin: 8px 0 0; font-size: 14px; line-height: 1.45; white-space: pre-line; color: var(--muted); }
 .produto__dica { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
 
+.bloco--extensao { grid-column: 1 / -1; }
+.aviso-risco { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--warn-bg); color: var(--warn); font-size: 14px; }
+.chave-nova { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px; border-radius: 12px; background: var(--ok-bg); }
+.chave-nova .mono { width: 100%; margin: 0; color: var(--ok); font-size: 11px; }
+.chave-nova code { font-family: var(--mono); font-size: 13px; word-break: break-all; flex: 1 1 260px; }
 .conexao { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; align-items: start; margin-top: 20px; }
 .passos { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 8px; font-size: 15px; }
 .passos code, .bloco__ajuda code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }

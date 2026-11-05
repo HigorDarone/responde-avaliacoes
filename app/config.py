@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     shopee_partner_key: str = ""
     shopee_redirect_url: str = "http://localhost:8000/shopee/callback"
     use_mock_shopee: bool = True
+    # Modo extensão: a extensão do Chrome lê o Seller Center e publica as respostas
+    # aprovadas (para quem não tem acesso à API oficial). Tem prioridade sobre os outros modos.
+    use_extensao: bool = False
     mock_reviews_path: Path = RAIZ_PROJETO / "data" / "mock_reviews.json"
 
     # Banco

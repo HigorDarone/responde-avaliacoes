@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Responde Avaliações",
+  "version": "0.1.0",
+  "description": "Lê as avaliações do Seller Center da Shopee, gera respostas com IA no painel Responde Avaliações e publica as aprovadas.",
+  "permissions": ["alarms", "storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://seller.shopee.com.br/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://seller.shopee.com.br/portal/settings/shop/rating*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": { "default_title": "Responde Avaliações", "default_popup": "popup.html" }
+}

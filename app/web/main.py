@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.web import personalizacao, shopee
+from app.web import extensao, personalizacao, shopee
 from app.web.routes import router
 
 
@@ -13,4 +13,5 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(personalizacao.router)
     app.include_router(shopee.router)
+    app.include_router(extensao.router)
     return app

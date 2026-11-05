@@ -64,6 +64,7 @@ class ReviewStatus(StrEnum):
     NOVA = "nova"  # buscada, ainda não analisada
     EM_ANALISE = "em_analise"  # enviada à Batch API, aguardando resultado
     NA_FILA = "na_fila"  # rascunho aguardando aprovação humana
+    ENVIANDO = "enviando"  # aprovada; a extensão do Chrome ainda vai publicar
     PUBLICADA = "publicada"
     DESCARTADA = "descartada"
     ERRO = "erro"
@@ -71,6 +72,7 @@ class ReviewStatus(StrEnum):
 
 class DraftStatus(StrEnum):
     PENDENTE = "pendente"
+    AGUARDANDO_ENVIO = "aguardando_envio"  # aprovado; a extensão ainda vai publicar
     PUBLICADO = "publicado"
     DESCARTADO = "descartado"
 
@@ -101,6 +103,9 @@ class Shop(Base):
     access_token: Mapped[str | None] = mapped_column(Text)
     refresh_token: Mapped[str | None] = mapped_column(Text)
     token_expira_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Chave que a extensão do Chrome usa para falar com o painel (modo extensão).
+    extensao_token: Mapped[str | None] = mapped_column(String(64), unique=True)
 
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora)
 
@@ -161,6 +166,7 @@ class Review(Base):
 
     status: Mapped[str] = mapped_column(String(20), default=ReviewStatus.NOVA, index=True)
     lote_id: Mapped[str | None] = mapped_column(String(100), index=True)  # Batch API
+    pedido: Mapped[str | None] = mapped_column(String(40))  # order_sn da Shopee
 
     # Resultado da análise da IA
     sentimento: Mapped[str | None] = mapped_column(String(20))
@@ -196,6 +202,9 @@ class ReplyDraft(Base):
     publicado_por: Mapped[str | None] = mapped_column(String(10))  # robo | humano
     publicado_por_usuario: Mapped[str | None] = mapped_column(String(200))
     publicado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Modo extensão: tentativas de envio e o último erro relatado pela extensão.
+    tentativas_envio: Mapped[int | None] = mapped_column(Integer)
+    erro_envio: Mapped[str | None] = mapped_column(Text)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora)
 
     review: Mapped[Review] = relationship(back_populates="drafts")

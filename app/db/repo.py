@@ -25,9 +25,16 @@ def garantir_lojas_mock(session: Session, client) -> None:
     session.commit()
 
 
-def consulta_lojas_operaveis(usar_mock: bool) -> Select:
-    """Lojas ativas que o sistema consegue usar: com a Shopee real, só as conectadas."""
-    consulta = select(Shop).where(Shop.ativo.is_(True), Shop.shopee_shop_id.is_not(None))
+def consulta_lojas_operaveis(usar_mock: bool, usar_extensao: bool = False) -> Select:
+    """Lojas ativas que o sistema consegue usar.
+
+    Modo extensão: as que têm chave da extensão. API real: só as conectadas (com token).
+    Mock: as lojas de exemplo.
+    """
+    consulta = select(Shop).where(Shop.ativo.is_(True))
+    if usar_extensao:
+        return consulta.where(Shop.extensao_token.is_not(None))
+    consulta = consulta.where(Shop.shopee_shop_id.is_not(None))
     if not usar_mock:
         consulta = consulta.where(Shop.refresh_token.is_not(None))
     return consulta

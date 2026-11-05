@@ -3,6 +3,7 @@ import os
 # Os testes nunca usam a Shopee real nem o .env do desenvolvedor para isso.
 os.environ["USE_MOCK_SHOPEE"] = "true"
 os.environ["SHOPEE_ENV"] = "sandbox"
+os.environ["USE_EXTENSAO"] = "false"
 
 import pytest  # noqa: E402
 from sqlalchemy.orm import Session

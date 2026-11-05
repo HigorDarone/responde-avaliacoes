@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 280px; font: 14px/1.4 system-ui, sans-serif; background: #f0efe3; color: #232323; margin: 0; padding: 16px; }
+    h1 { font-size: 17px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.01em; }
+    .ultima { background: #fefdf5; border: 1px solid rgba(35,35,35,.1); border-radius: 12px; padding: 10px 12px; }
+    .ultima small { display: block; color: #6b6a5f; font: 500 10px ui-monospace, monospace; text-transform: uppercase; margin-bottom: 4px; }
+    .erro { color: #8a2f0f; }
+    button { width: 100%; margin-top: 12px; padding: 10px; border: 0; border-radius: 12px; background: #0b4fff; color: #fff; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .5; }
+    a { display: block; margin-top: 10px; color: #6b6a5f; font-size: 13px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Responde Avaliações</h1>
+  <div class="ultima"><small>Última passada</small><span id="ultima">Ainda não rodou.</span></div>
+  <button id="rodar">Rodar agora</button>
+  <a href="options.html" target="_blank">Opções</a>
+  <script src="popup.js"></script>
+</body>
+</html>

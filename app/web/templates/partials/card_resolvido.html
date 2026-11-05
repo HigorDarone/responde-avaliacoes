@@ -1,25 +1,33 @@
-{# Card depois da ação: publicado (definitivo) ou descartado (dá para desfazer). #}
+{# Card depois da ação: publicado (definitivo), aguardando a extensão publicar, ou descartado (dá para desfazer). #}
 {% set publicada = draft.status == "publicado" %}
-<article class="card card--resolvido {{ 'card--publicada' if publicada else 'card--descartada' }}" id="review-{{ review.id }}">
+{% set aguardando = draft.status == "aguardando_envio" %}
+<article class="card card--resolvido {{ 'card--publicada' if publicada or aguardando else 'card--descartada' }}" id="review-{{ review.id }}">
   <div class="resolvido__topo">
     {% if publicada %}
       <span class="pilula mono pilula--ok">
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Publicada
       </span>
+    {% elif aguardando %}
+      <span class="pilula mono pilula--azul">Aprovada · aguardando a extensão</span>
     {% else %}
       <span class="pilula mono">Descartada</span>
     {% endif %}
     <span class="card__produto-mini">{{ review.produto_nome }} · {{ review.estrelas }}★</span>
   </div>
 
-  {% if publicada %}
+  {% if publicada or aguardando %}
     {% set e_exemplo = (review | texto_avaliacao, (draft.texto_final or "") | trim) in exemplos_salvos %}
     <p class="resolvido__texto">{{ draft.texto_final }}</p>
     <div class="resolvido__linha">
       <p class="mono muted resolvido__meta">
-        {{ 'Editada e publicada' if draft.editado else 'Publicada' }} por {{ draft.publicado_por_usuario or draft.publicado_por }}
-        em {{ draft.publicado_em | data_hora }}
+        {% if publicada %}
+          {{ 'Editada e publicada' if draft.editado else 'Publicada' }} por {{ draft.publicado_por_usuario or draft.publicado_por }}
+          em {{ draft.publicado_em | data_hora }}
+        {% else %}
+          A extensão do Chrome publica na próxima passada no Seller Center.
+          {% if draft.erro_envio %}Última tentativa falhou: {{ draft.erro_envio }}{% endif %}
+        {% endif %}
       </p>
       {% if e_exemplo %}
         <span class="pilula mono pilula--ok">★ {{ 'Virou exemplo (sua edição)' if draft.editado else 'Exemplo da loja' }}</span>

@@ -8,12 +8,12 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.db.models import AuditLog, Shop
 from app.db.repo import criar_loja
 from app.shopee.base import ShopeeError
 from app.shopee.client import ShopeeAuth, ShopeeRealClient, Tokens
-from app.web.routes import AUTOR_PAINEL, _contexto, get_db, loja_atual, templates
+from app.web.routes import AUTOR_PAINEL, _contexto, get_config, get_db, loja_atual, templates
 
 router = APIRouter(prefix="/shopee")
 COOKIE_STATE = "shopee_oauth_state"
@@ -32,10 +32,6 @@ class _TokensDaConexao:
         self.tokens = tokens
 
 
-def get_config() -> Settings:
-    return get_settings()
-
-
 def get_auth(settings: Settings = Depends(get_config)) -> ShopeeAuth:
     return ShopeeAuth(settings)
 
@@ -50,7 +46,7 @@ def _pronta_para_conectar(s: Settings) -> str:
 
 
 def _pagina(request: Request, db: Session, loja: Shop | None, settings: Settings,
-            ok: str = "", erro: str = "", status_code: int = 200):
+            ok: str = "", erro: str = "", status_code: int = 200, nova_chave: str = ""):
     conectadas = db.scalars(
         select(Shop).where(Shop.refresh_token.is_not(None)).order_by(Shop.id)
     ).all()
@@ -58,7 +54,8 @@ def _pagina(request: Request, db: Session, loja: Shop | None, settings: Settings
         request, "shopee.html",
         _contexto(db, loja, "shopee", settings=settings, conectadas=conectadas,
                   bloqueio=_pronta_para_conectar(settings), ok=ok, erro=erro,
-                  agora=datetime.now(UTC)),
+                  agora=datetime.now(UTC), nova_chave=nova_chave,
+                  url_painel=str(request.base_url).rstrip("/")),
         status_code=status_code,
     )
 
@@ -67,6 +64,20 @@ def _pagina(request: Request, db: Session, loja: Shop | None, settings: Settings
 def conexao(request: Request, ok: str = "", db: Session = Depends(get_db),
             loja: Shop | None = Depends(loja_atual), settings: Settings = Depends(get_config)):
     return _pagina(request, db, loja, settings, ok=ok)
+
+
+@router.post("/extensao/chave")
+def gerar_chave_extensao(request: Request, db: Session = Depends(get_db),
+                         loja: Shop | None = Depends(loja_atual), settings: Settings = Depends(get_config)):
+    """Cria (ou troca) a chave que a extensão do Chrome usa. Trocar invalida a anterior."""
+    from app.web.extensao import gerar_chave
+
+    if loja is None:
+        loja = criar_loja(db, "Minha loja")
+    loja.extensao_token = gerar_chave()
+    db.add(AuditLog(shop_id=loja.id, acao="chave_extensao_gerada", autor=AUTOR_PAINEL, detalhes={}))
+    db.commit()
+    return _pagina(request, db, loja, settings, nova_chave=loja.extensao_token)
 
 
 @router.get("/conectar")

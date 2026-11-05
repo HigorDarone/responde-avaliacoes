@@ -26,6 +26,7 @@ from app.ai.analyzer import AnaliseError, AnaliseIA, Analisador, PedidoAnalise, 
 from app.ai.contexto import carregar_contexto
 from app.config import Settings, get_settings
 from app.db.repo import consulta_lojas_operaveis
+from app.envio import enfileirar_envio
 from app.db.models import (
     AuditLog,
     DraftStatus,
@@ -57,6 +58,7 @@ class RelatorioCiclo:
     publicadas: int = 0
     na_fila: int = 0
     enviadas_lote: int = 0
+    para_extensao: int = 0  # aprovadas pelo robô, esperando a extensão publicar
     erros: int = 0
     lojas_no_limite: list[int] = field(default_factory=list)
 
@@ -65,6 +67,8 @@ class RelatorioCiclo:
             f"{self.novas} novas, {self.publicadas} publicadas, {self.na_fila} na fila, "
             f"{self.enviadas_lote} enviadas em lote, {self.erros} erros"
         )
+        if self.para_extensao:
+            texto += f", {self.para_extensao} aguardando a extensão publicar"
         if self.lojas_no_limite:
             texto += f"; limite mensal atingido nas lojas {self.lojas_no_limite}"
         return texto
@@ -104,19 +108,31 @@ class Robo:
     def modo_lote(self) -> bool:
         return self.settings.use_batch_api
 
+    @property
+    def modo_extensao(self) -> bool:
+        return self.settings.use_extensao
+
     def executar_ciclo(self, session: Session) -> RelatorioCiclo:
         rel = RelatorioCiclo()
-        lojas = session.scalars(consulta_lojas_operaveis(self.settings.use_mock_shopee)).all()
-        for loja in lojas:
-            try:
-                if self.modo_lote:
-                    self._recolher_lotes(session, loja, rel)
+        consulta = consulta_lojas_operaveis(self.settings.use_mock_shopee, self.modo_extensao)
+        for loja in session.scalars(consulta).all():
+            # No modo extensão quem traz as avaliações é a extensão; o robô só analisa.
+            self.processar_loja(session, loja, rel, buscar=not self.modo_extensao)
+        return rel
+
+    def processar_loja(self, session: Session, loja: Shop, rel: RelatorioCiclo | None = None,
+                       buscar: bool = True) -> RelatorioCiclo:
+        rel = rel or RelatorioCiclo()
+        try:
+            if self.modo_lote:
+                self._recolher_lotes(session, loja, rel)
+            if buscar:
                 self._buscar_novas(session, loja, rel)
-                self._processar_pendentes(session, loja, rel)
-            except (anthropic.APIError, ShopeeError) as e:
-                # Falha de rede/API: o que não terminou continua "nova" e é tentado no próximo ciclo.
-                session.rollback()
-                log.warning("Loja %s: ciclo interrompido (%s)", loja.id, e)
+            self._processar_pendentes(session, loja, rel)
+        except (anthropic.APIError, ShopeeError) as e:
+            # Falha de rede/API: o que não terminou continua "nova" e é tentado no próximo ciclo.
+            session.rollback()
+            log.warning("Loja %s: ciclo interrompido (%s)", loja.id, e)
         return rel
 
     # --- 1. Buscar ---
@@ -253,9 +269,12 @@ class Robo:
 
         # A chave é lida agora, não quando a avaliação foi buscada: desligar vale na hora.
         session.refresh(loja.settings)
-        if decidir(loja.settings.auto_publicar, a) == Decisao.PUBLICAR and self._publicar(
-            session, loja, review, a.resposta
-        ):
+        publicar = decidir(loja.settings.auto_publicar, a) == Decisao.PUBLICAR
+        if publicar and self.modo_extensao:
+            # Sem API: a extensão do Chrome publica e confirma depois.
+            enfileirar_envio(review, draft, a.resposta, PublicadoPor.ROBO)
+            rel.para_extensao += 1
+        elif publicar and self._publicar(session, loja, review, a.resposta):
             draft.texto_final = a.resposta
             draft.status = DraftStatus.PUBLICADO
             draft.publicado_por = PublicadoPor.ROBO

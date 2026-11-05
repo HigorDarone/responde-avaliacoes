@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Responde Avaliações · Opções</title>
+  <style>
+    body { font: 15px/1.4 system-ui, sans-serif; background: #f0efe3; color: #232323; margin: 0; padding: 32px 16px; }
+    main { max-width: 520px; margin: 0 auto; background: #fefdf5; border: 1px solid rgba(35,35,35,.1); border-radius: 20px; padding: 28px; }
+    h1 { margin: 0 0 6px; font-weight: 500; letter-spacing: -0.02em; }
+    p { color: #6b6a5f; margin: 0 0 20px; }
+    label { display: block; margin: 16px 0 6px; font: 500 11px ui-monospace, monospace; text-transform: uppercase; color: #6b6a5f; }
+    input[type=text], input[type=password], input[type=number] { width: 100%; box-sizing: border-box; padding: 11px 13px; border: 1px solid rgba(35,35,35,.15); border-radius: 12px; background: #f0efe3; font: inherit; }
+    .linha { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+    button { margin-top: 24px; padding: 12px 20px; border: 0; border-radius: 12px; background: #0b4fff; color: #fff; font: inherit; cursor: pointer; }
+    #status { margin-top: 14px; color: #114e0b; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Responde Avaliações</h1>
+    <p>Pegue o endereço e a chave em <strong>Conexão Shopee › Extensão do Chrome</strong> no painel.</p>
+    <label for="painel">Endereço do painel</label>
+    <input id="painel" type="text" placeholder="http://localhost:8000">
+    <label for="chave">Chave da extensão</label>
+    <input id="chave" type="password" placeholder="ext_...">
+    <label for="intervalo">Intervalo entre passadas (minutos, mínimo 10)</label>
+    <input id="intervalo" type="number" min="10" step="5">
+    <div class="linha"><input id="ativo" type="checkbox"><span>Extensão ativa (desmarque para pausar tudo)</span></div>
+    <button id="salvar">Salvar</button>
+    <div id="status" role="status"></div>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
