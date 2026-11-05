@@ -10,6 +10,8 @@ const URL_AVALIACOES =
 const PADRAO = { painel: "http://localhost:8000", chave: "", ativo: true, intervalo: 30 };
 const PAUSA_ENTRE_ENVIOS_MS = 12000;
 const ESPERA_ANALISE_MS = 45000;
+const PAUSA_ENTRE_PAGINAS_MS = 1500; // + até 1,5 s aleatório, no ritmo de uma pessoa
+const MAX_PAGINAS = 50; // até 1.000 avaliações por passada
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 let rodando = false;
@@ -103,19 +105,38 @@ async function ciclo() {
       return registrar("Faça login no Seller Center (a aba fixada da extensão abriu a tela de login).", false);
     }
 
-    const lidas = await mandar(tab.id, { tipo: "coletar" });
-    if (!lidas || lidas.erro) return registrar(lidas ? lidas.erro : "Não consegui ler a página.", false);
-    const recebidas = await api("/api/extensao/avaliacoes", {
-      method: "POST",
-      body: JSON.stringify({ avaliacoes: lidas.avaliacoes }),
-    });
-    if (recebidas.novas) await dormir(ESPERA_ANALISE_MS); // tempo para a IA analisar as novas
+    // Lê página por página (20 por vez), mandando cada uma ao painel assim que lê.
+    let lidas = 0;
+    let novas = 0;
+    let paginas = 0;
+    for (;;) {
+      const pagina = await mandar(tab.id, { tipo: "coletar" });
+      if (!pagina || pagina.erro) {
+        if (paginas === 0) return registrar(pagina ? pagina.erro : "Não consegui ler a página.", false);
+        break; // já leu algumas; segue com o que tem
+      }
+      paginas++;
+      if (pagina.avaliacoes.length) {
+        const r = await api("/api/extensao/avaliacoes", {
+          method: "POST",
+          body: JSON.stringify({ avaliacoes: pagina.avaliacoes }),
+        });
+        lidas += r.recebidas;
+        novas += r.novas;
+      }
+      if (!pagina.temProxima || paginas >= MAX_PAGINAS) break;
+      await dormir(PAUSA_ENTRE_PAGINAS_MS + Math.random() * 1500);
+      const prox = await mandar(tab.id, { tipo: "proxima" });
+      if (!prox || !prox.ok) break;
+    }
+    if (novas) await dormir(ESPERA_ANALISE_MS); // tempo para a IA analisar as novas
 
     const { envios } = await api("/api/extensao/envios");
     let publicadas = 0;
     let falhas = 0;
     for (const envio of envios) {
-      const r = (await mandar(tab.id, { tipo: "responder", envio })) || { ok: false, erro: "Sem resposta da página." };
+      const r = (await mandar(tab.id, { tipo: "responder", envio, maxPaginas: MAX_PAGINAS }))
+        || { ok: false, erro: "Sem resposta da página." };
       await api(`/api/extensao/envios/${envio.id}`, {
         method: "POST",
         body: JSON.stringify({ ok: !!r.ok, erro: r.erro || "" }),
@@ -124,7 +145,7 @@ async function ciclo() {
       await dormir(PAUSA_ENTRE_ENVIOS_MS);
     }
     return registrar(
-      `${lidas.avaliacoes.length} lidas, ${recebidas.novas} novas, ${publicadas} publicadas` +
+      `${lidas} lidas em ${paginas} página(s), ${novas} novas, ${publicadas} publicadas` +
         (falhas ? `, ${falhas} com falha (veja o painel)` : ""),
       falhas === 0
     );

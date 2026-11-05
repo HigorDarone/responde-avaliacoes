@@ -202,6 +202,35 @@ def test_modo_extensao_usa_lojas_com_chave(session, loja):
     assert [l.nome for l in session.scalars(consulta_lojas_operaveis(True, usar_extensao=True))] == ["Minha loja"]
 
 
+def test_analise_uma_por_loja_e_repete_se_chegar_mais():
+    import threading
+
+    from app.web.extensao import um_por_loja
+
+    entrou, solta = threading.Event(), threading.Event()
+    chamadas = []
+
+    @um_por_loja
+    def processar(loja_id):
+        chamadas.append(loja_id)
+        if len(chamadas) == 1:
+            entrou.set()
+            solta.wait(5)
+
+    t = threading.Thread(target=processar, args=(7,))
+    t.start()
+    entrou.wait(5)
+    processar(7)  # chega durante a primeira: não roda junto...
+    processar(7)  # ...e várias chegadas viram uma única repetição
+    processar(8)  # outra loja roda normalmente
+    assert chamadas == [7, 8]
+    solta.set()
+    t.join(5)
+    assert chamadas == [7, 8, 7]
+    processar(7)  # terminou: roda de novo normalmente
+    assert chamadas == [7, 8, 7, 7]
+
+
 def test_comment_id_estavel_e_diferente_por_produto():
     a = comment_id_da_extensao("P1", "Vaso")
     assert a == comment_id_da_extensao(" P1 ", "Vaso ")

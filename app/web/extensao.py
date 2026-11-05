@@ -11,6 +11,7 @@ A extensão se identifica pelo cabeçalho X-Chave-Extensao (gerado em Conexão S
 
 import logging
 import secrets
+import threading
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
@@ -44,6 +45,40 @@ def loja_da_extensao(x_chave_extensao: str = Header(""), db: Session = Depends(g
 # --- Processamento em segundo plano (análise com a IA) ---
 
 
+_guarda = threading.Lock()
+_rodando: set[int] = set()
+_de_novo: set[int] = set()
+
+
+def um_por_loja(funcao):
+    """Garante uma análise por loja de cada vez (a extensão manda página por página, e duas
+    análises juntas pegariam as mesmas avaliações e pagariam a IA duas vezes). Pedidos que
+    chegam durante a análise fazem ela rodar mais uma vez no fim, para pegar as novas."""
+
+    def executar(loja_id: int) -> None:
+        with _guarda:
+            if loja_id in _rodando:
+                _de_novo.add(loja_id)
+                return
+            _rodando.add(loja_id)
+        try:
+            while True:
+                funcao(loja_id)
+                with _guarda:
+                    if loja_id not in _de_novo:
+                        _rodando.discard(loja_id)
+                        return
+                    _de_novo.discard(loja_id)
+        except BaseException:
+            with _guarda:
+                _rodando.discard(loja_id)
+                _de_novo.discard(loja_id)
+            raise
+
+    return executar
+
+
+@um_por_loja
 def _processar(loja_id: int) -> None:
     from app.ai.analyzer import Analisador
     from app.worker import Robo

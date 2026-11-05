@@ -125,6 +125,47 @@
     }
   }
 
+  // --- Páginas (a lista mostra 20 por vez e só troca pelos botões; a URL usa um cursor) ---
+
+  function botaoProxima() {
+    const b = document.querySelector(".eds-react-pagination-pager__button-next");
+    return b && !b.disabled && !b.classList.contains("disabled") ? b : null;
+  }
+
+  function paginaAtual() {
+    const ativa = document.querySelector(".eds-react-pagination-pager__page.active");
+    return ativa ? Number(ativa.innerText.trim()) || 1 : 1;
+  }
+
+  const primeiroPedido = () => { const c = cartoes()[0]; return c ? pedidoDe(c) : ""; };
+
+  async function trocarPagina(clicar) {
+    const antes = primeiroPedido();
+    clicar();
+    const mudou = await esperar(() => { const p = primeiroPedido(); return p && p !== antes; }, 12000, 300);
+    await dormir(800);
+    return !!mudou;
+  }
+
+  async function proxima() {
+    const b = botaoProxima();
+    if (!b) return { ok: false, erro: "Não há próxima página." };
+    return { ok: await trocarPagina(() => b.click()), pagina: paginaAtual() };
+  }
+
+  async function irParaPrimeira() {
+    if (paginaAtual() === 1) return true;
+    const um = [...document.querySelectorAll(".eds-react-pagination-pager__page")].find((li) => li.innerText.trim() === "1");
+    if (um) return trocarPagina(() => um.click());
+    // Paginador sem o "1" visível: volta uma por uma.
+    for (let i = 0; i < 100 && paginaAtual() > 1; i++) {
+      const ant = document.querySelector(".eds-react-pagination-pager__button-prev");
+      if (!ant || ant.classList.contains("disabled") || !(await trocarPagina(() => ant.click()))) return false;
+    }
+    return paginaAtual() === 1;
+  }
+
+  // Lê só a página que está na tela; o background pede a próxima.
   async function coletar() {
     if (!location.hostname.startsWith("seller.")) return { erro: "Faça login no Seller Center." };
     await esperar(() => cartoes().length || document.body.innerText.includes("Lista de Avaliação"), 15000);
@@ -139,7 +180,7 @@
       if (a && a.pedido && a.produto) lidas.push(a);
     }
     window.scrollTo(0, 0);
-    return { avaliacoes: lidas };
+    return { avaliacoes: lidas, pagina: paginaAtual(), temProxima: !!botaoProxima() };
   }
 
   // --- Publicação de uma resposta aprovada ---
@@ -157,9 +198,24 @@
     return avisos.join(" | ").slice(0, 300);
   }
 
-  async function responder(envio) {
-    const cartao = cartoes().find((c) => mesmoItem(c, envio));
-    if (!cartao) return { ok: false, erro: "Avaliação não encontrada na página." };
+  // Procura a avaliação na página atual; se não estiver, volta para a 1ª e avança até achar.
+  async function acharCartao(envio, maxPaginas) {
+    const aqui = () => cartoes().find((c) => mesmoItem(c, envio));
+    if (aqui()) return aqui();
+    if (!(await irParaPrimeira())) return null;
+    for (let i = 0; i < maxPaginas; i++) {
+      if (aqui()) return aqui();
+      const b = botaoProxima();
+      if (!b || !(await trocarPagina(() => b.click()))) return null;
+      await dormir(700);
+    }
+    return aqui() || null;
+  }
+
+  async function responder(envio, maxPaginas = 50) {
+    await esperar(() => cartoes().length, 8000);
+    const cartao = await acharCartao(envio, maxPaginas);
+    if (!cartao) return { ok: false, erro: "Avaliação não encontrada em \"Para Responder\" (talvez já respondida)." };
     const botao = botaoResponder(cartao);
     if (!botao) return { ok: true, nota: "Já estava respondida." };
     if (!envio.texto || envio.texto.length > 500) return { ok: false, erro: "Texto vazio ou com mais de 500 caracteres." };
@@ -198,7 +254,12 @@
   }
 
   chrome.runtime.onMessage.addListener((msg, _remetente, responderMsg) => {
-    const tarefas = { coletar: () => coletar(), responder: () => responder(msg.envio), ping: async () => ({ ok: true }) };
+    const tarefas = {
+      coletar: () => coletar(),
+      proxima: () => proxima(),
+      responder: () => responder(msg.envio, msg.maxPaginas),
+      ping: async () => ({ ok: true }),
+    };
     const tarefa = tarefas[msg.tipo];
     if (!tarefa) return false;
     tarefa().then(responderMsg).catch((e) => responderMsg({ ok: false, erro: String(e && e.message || e) }));
