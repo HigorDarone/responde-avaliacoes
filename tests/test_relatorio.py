@@ -159,7 +159,7 @@ def client(session, claude):
 def test_tela_mostra_contagens_e_lista(client, avaliacoes):
     html = client.get("/relatorio").text
     assert "O que <span" in html and 'href="/relatorio"' in html
-    assert "Produto diferente" in html and "Ainda não analisada" in html
+    assert "Produto diferente" in html and "Sem classificação" in html
     assert "A cor veio bem diferente da foto" in html
     assert "Perfeito" not in html and "Antiga, quebrou" not in html  # 5★ e fora do período
     assert "Gerar relatório com IA" in html

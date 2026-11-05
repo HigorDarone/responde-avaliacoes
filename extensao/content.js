@@ -89,11 +89,25 @@
     return Math.min(5, Math.max(1, visiveis));
   }
 
+  const ROTULO_RESPOSTA = /^Resposta do Vendedor:?\s*/i;
+
+  // Em avaliações já respondidas, a resposta da loja vem num bloco à parte ("Resposta do Vendedor:").
+  function separarResposta(col) {
+    let resposta = "";
+    const partes = [];
+    for (const filho of col.children) {
+      const t = filho.innerText.trim();
+      if (ROTULO_RESPOSTA.test(t)) resposta = t.replace(ROTULO_RESPOSTA, "").trim();
+      else if (t) partes.push(t);
+    }
+    return { textoCliente: partes.join("\n"), resposta };
+  }
+
   function lerCartao(cartao) {
     const [, col] = colunas(cartao);
     if (!col) return null;
     const { produto, variacao } = produtoDe(cartao);
-    const bruto = col.innerText;
+    const { textoCliente: bruto, resposta } = separarResposta(col);
     const data = (bruto.match(DATA) || [""])[0];
     const midias = [
       ...[...col.querySelectorAll("img")].map((i) => ({ tipo: "foto", url: i.currentSrc || i.src })),
@@ -107,6 +121,7 @@
       texto: bruto.replace(DATA, "").trim(),
       midias,
       data,
+      resposta_vendedor: resposta.slice(0, 1000),
     };
   }
 
@@ -166,14 +181,15 @@
   }
 
   // Lê só a página que está na tela; o background pede a próxima.
-  async function coletar() {
+  // historico = lista "Respondido" (só para o relatório): não filtra por "Para Responder".
+  async function coletar(historico = false) {
     if (!location.hostname.startsWith("seller.")) return { erro: "Faça login no Seller Center." };
     await esperar(() => cartoes().length || document.body.innerText.includes("Lista de Avaliação"), 15000);
-    await filtrarParaResponder();
+    if (!historico) await filtrarParaResponder();
     await esperar(() => cartoes().length, 8000);
     const lidas = [];
     for (const cartao of cartoes()) {
-      if (!botaoResponder(cartao)) continue; // já respondida
+      if (!historico && !botaoResponder(cartao)) continue; // já respondida
       cartao.scrollIntoView({ block: "center" });
       await dormir(150);
       const a = lerCartao(cartao);
@@ -255,7 +271,7 @@
 
   chrome.runtime.onMessage.addListener((msg, _remetente, responderMsg) => {
     const tarefas = {
-      coletar: () => coletar(),
+      coletar: () => coletar(!!msg.historico),
       proxima: () => proxima(),
       responder: () => responder(msg.envio, msg.maxPaginas),
       ping: async () => ({ ok: true }),

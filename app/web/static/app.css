@@ -756,6 +756,18 @@ a.barra__nome:hover { text-decoration: underline; color: var(--primary); }
 .rel-item__data { margin-left: auto; font-size: 10px; }
 .rel-item__produto { margin: 0; font-size: 14px; color: var(--muted); }
 .rel-item .avaliacao { font-size: 15px; }
+.rel-item__resposta {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rel-item__resposta .mono { font-size: 10px; }
 
 @media (max-width: 960px) {
   .regras { grid-template-columns: 1fr; }

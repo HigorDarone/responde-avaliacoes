@@ -93,6 +93,42 @@ def test_avaliacao_invalida(client, ruim):
     assert client.post("/api/extensao/avaliacoes", json={"avaliacoes": [_avaliacao(**ruim)]}).status_code == 422
 
 
+# --- Histórico (já respondidas): só relatório ---
+
+
+def test_historico_salva_sem_analisar_nem_enfileirar(client, session, loja, processados):
+    lote = {"avaliacoes": [
+        _avaliacao(pedido="H1", estrelas=1, texto="Cor diferente da foto", resposta_vendedor="Poxa, chama no chat!"),
+        _avaliacao(pedido="H2", estrelas=3, texto="Ok"),
+    ]}
+    assert client.post("/api/extensao/historico", json=lote).json() == {"recebidas": 2, "novas": 2}
+    assert client.post("/api/extensao/historico", json=lote).json() == {"recebidas": 2, "novas": 0}
+    assert processados == []  # sem IA
+
+    reviews = session.scalars(select(Review).order_by(Review.id)).all()
+    assert {r.status for r in reviews} == {ReviewStatus.JA_RESPONDIDA}
+    assert reviews[0].resposta_vendedor == "Poxa, chama no chat!" and reviews[1].resposta_vendedor is None
+
+    # O robô não analisa, a fila e os envios continuam vazios, e o relatório mostra.
+    rel = _robo(session).processar_loja(session, loja, buscar=False)
+    assert rel.na_fila == 0 and rel.para_extensao == 0
+    assert session.scalar(select(ReplyDraft)) is None
+    assert "Cor diferente" not in client.get("/fila").text
+    assert client.get("/api/extensao/envios").json() == {"envios": []}
+    html = client.get("/relatorio?dias=0").text
+    assert "Cor diferente da foto" in html and "Respondida antes" in html and "Poxa, chama no chat!" in html
+
+
+def test_historico_nao_mexe_em_avaliacao_ja_conhecida(client, session, loja):
+    client.post("/api/extensao/avaliacoes", json={"avaliacoes": [_avaliacao(pedido="P1", estrelas=2, texto="Quebrou")]})
+    r = client.post("/api/extensao/historico", json={"avaliacoes": [
+        _avaliacao(pedido="P1", estrelas=2, texto="Quebrou", resposta_vendedor="Resposta feita na Shopee"),
+    ]})
+    assert r.json()["novas"] == 0
+    review = session.scalar(select(Review))
+    assert review.status == ReviewStatus.NOVA and review.resposta_vendedor == "Resposta feita na Shopee"
+
+
 # --- Decisão no modo extensão ---
 
 

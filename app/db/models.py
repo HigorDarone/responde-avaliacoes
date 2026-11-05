@@ -68,6 +68,9 @@ class ReviewStatus(StrEnum):
     PUBLICADA = "publicada"
     DESCARTADA = "descartada"
     ERRO = "erro"
+    # Lida da lista "Respondido" da Shopee (respondida antes, fora do sistema): só para o relatório,
+    # nunca é analisada para resposta nem entra na fila.
+    JA_RESPONDIDA = "ja_respondida"
 
 
 class DraftStatus(StrEnum):
@@ -167,6 +170,8 @@ class Review(Base):
     status: Mapped[str] = mapped_column(String(20), default=ReviewStatus.NOVA, index=True)
     lote_id: Mapped[str | None] = mapped_column(String(100), index=True)  # Batch API
     pedido: Mapped[str | None] = mapped_column(String(40))  # order_sn da Shopee
+    # Resposta que já estava publicada na Shopee quando a avaliação foi lida (histórico).
+    resposta_vendedor: Mapped[str | None] = mapped_column(Text)
 
     # Resultado da análise da IA
     sentimento: Mapped[str | None] = mapped_column(String(20))

@@ -62,7 +62,7 @@
     <div class="vazio">
       <span class="pilula pilula--ok mono">Nada aqui</span>
       <h2>Nenhuma avaliação com esses filtros</h2>
-      <p>Experimente incluir mais estrelas ou um período maior. O relatório usa as avaliações que a extensão já leu.</p>
+      <p>Experimente incluir mais estrelas ou um período maior. O relatório usa as avaliações que a extensão já leu — clique em "Rodar agora" na extensão para trazer também as que você já respondeu.</p>
     </div>
   {% else %}
     <div class="numeros">
@@ -83,10 +83,10 @@
     <div class="rel-grade">
       <section class="bloco">
         <div class="bloco__topo"><h2>Motivos</h2></div>
-        <p class="bloco__ajuda">Pela classificação que a IA fez de cada avaliação ao responder.</p>
+        <p class="bloco__ajuda">Pela classificação que a IA fez de cada avaliação ao responder. As que você respondeu antes de usar o sistema ficam em "Sem classificação" — a análise com IA abaixo lê todas.</p>
         <ul class="barras">
           {% for cat, n in resumo.por_categoria %}
-            {% set nome, classe = categorias.get(cat, ("Ainda não analisada", "")) %}
+            {% set nome, classe = categorias.get(cat, ("Sem classificação", "")) %}
             <li class="barra">
               <span class="barra__nome">{{ nome }}</span>
               <span class="barra__trilho"><span class="barra__valor barra__valor--{{ cat }}" style="width: {{ (n / resumo.maior_categoria * 100)|round(1) }}%"></span></span>

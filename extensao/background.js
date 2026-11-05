@@ -7,7 +7,12 @@
 const URL_AVALIACOES =
   "https://seller.shopee.com.br/portal/settings/shop/rating?pageNumber=1&fromPageNumber=1&cursor=0" +
   "&pageSize=20&replied=TO_REPLY&ratingStar=ALL&ratingStar=5&ratingStar=4&ratingStar=3&ratingStar=2&ratingStar=1";
-const PADRAO = { painel: "http://localhost:8000", chave: "", ativo: true, intervalo: 30 };
+// Já respondidas, só 1 a 4 estrelas (para o relatório "O que melhorar").
+const URL_HISTORICO =
+  "https://seller.shopee.com.br/portal/settings/shop/rating?pageNumber=1&fromPageNumber=1&cursor=0" +
+  "&pageSize=20&replied=REPLIED&ratingStar=4&ratingStar=3&ratingStar=2&ratingStar=1";
+const INTERVALO_HISTORICO_MS = 12 * 60 * 60 * 1000;
+const PADRAO ={ painel: "http://localhost:8000", chave: "", ativo: true, intervalo: 30 };
 const PAUSA_ENTRE_ENVIOS_MS = 12000;
 const ESPERA_ANALISE_MS = 45000;
 const PAUSA_ENTRE_PAGINAS_MS = 1500; // + até 1,5 s aleatório, no ritmo de uma pessoa
@@ -31,7 +36,8 @@ chrome.runtime.onStartup.addListener(agendar);
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === "ciclo") ciclo(); });
 
 chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
-  if (msg.tipo === "rodarAgora") { ciclo().then(responder); return true; }
+  // "Rodar agora" também confere o histórico (rápido: para na 1ª página sem novidade).
+  if (msg.tipo === "rodarAgora") { ciclo(true).then(responder); return true; }
   if (msg.tipo === "reagendar") { agendar().then(() => responder({ ok: true })); return true; }
   return false;
 });
@@ -64,14 +70,14 @@ async function esperarCarregar(tabId) {
   return chrome.tabs.get(tabId);
 }
 
-async function abaDoSellerCenter() {
+async function abaDoSellerCenter(url = URL_AVALIACOES) {
   const { abaId } = await chrome.storage.local.get("abaId");
   let tab = null;
   if (abaId) tab = await chrome.tabs.get(abaId).catch(() => null);
   if (tab) {
-    await chrome.tabs.update(tab.id, { url: URL_AVALIACOES });
+    await chrome.tabs.update(tab.id, { url });
   } else {
-    tab = await chrome.tabs.create({ url: URL_AVALIACOES, active: false, pinned: true });
+    tab = await chrome.tabs.create({ url, active: false, pinned: true });
     await chrome.storage.local.set({ abaId: tab.id });
   }
   tab = await esperarCarregar(tab.id);
@@ -90,7 +96,47 @@ async function mandar(tabId, mensagem) {
   }
 }
 
-async function ciclo() {
+// Lê página por página (20 por vez), mandando cada uma ao painel assim que lê.
+// pararSemNovas: para na primeira página sem nada novo (a lista vem das mais recentes).
+async function lerPaginas(api, tabId, rota, { historico = false, pararSemNovas = false } = {}) {
+  const r = { lidas: 0, novas: 0, paginas: 0, erro: "" };
+  for (;;) {
+    const pagina = await mandar(tabId, { tipo: "coletar", historico });
+    if (!pagina || pagina.erro) {
+      if (r.paginas === 0) r.erro = pagina ? pagina.erro : "Não consegui ler a página.";
+      return r; // se já leu algumas, segue com o que tem
+    }
+    r.paginas++;
+    let novasDaPagina = 0;
+    if (pagina.avaliacoes.length) {
+      const resp = await api(rota, { method: "POST", body: JSON.stringify({ avaliacoes: pagina.avaliacoes }) });
+      r.lidas += resp.recebidas;
+      r.novas += resp.novas;
+      novasDaPagina = resp.novas;
+    }
+    if (!pagina.temProxima || r.paginas >= MAX_PAGINAS) return r;
+    if (pararSemNovas && novasDaPagina === 0) return r;
+    await dormir(PAUSA_ENTRE_PAGINAS_MS + Math.random() * 1500);
+    const prox = await mandar(tabId, { tipo: "proxima" });
+    if (!prox || !prox.ok) return r;
+  }
+}
+
+// Avaliações de 1 a 4 estrelas já respondidas: entram só no relatório, nunca na fila.
+// A primeira vez lê tudo; depois, no máximo uma vez a cada 12 h, só até achar uma página sem novidade.
+async function lerHistorico(api, forcar) {
+  const { historicoEm = 0, historicoCompleto = false } = await chrome.storage.local.get(["historicoEm", "historicoCompleto"]);
+  if (!forcar && Date.now() - historicoEm < INTERVALO_HISTORICO_MS) return null;
+  const tab = await abaDoSellerCenter(URL_HISTORICO);
+  const r = await lerPaginas(api, tab.id, "/api/extensao/historico", {
+    historico: true,
+    pararSemNovas: historicoCompleto,
+  });
+  if (!r.erro) await chrome.storage.local.set({ historicoEm: Date.now(), historicoCompleto: true });
+  return r;
+}
+
+async function ciclo(forcarHistorico = false) {
   if (rodando) return { ok: false, mensagem: "Já está rodando." };
   rodando = true;
   try {
@@ -105,31 +151,9 @@ async function ciclo() {
       return registrar("Faça login no Seller Center (a aba fixada da extensão abriu a tela de login).", false);
     }
 
-    // Lê página por página (20 por vez), mandando cada uma ao painel assim que lê.
-    let lidas = 0;
-    let novas = 0;
-    let paginas = 0;
-    for (;;) {
-      const pagina = await mandar(tab.id, { tipo: "coletar" });
-      if (!pagina || pagina.erro) {
-        if (paginas === 0) return registrar(pagina ? pagina.erro : "Não consegui ler a página.", false);
-        break; // já leu algumas; segue com o que tem
-      }
-      paginas++;
-      if (pagina.avaliacoes.length) {
-        const r = await api("/api/extensao/avaliacoes", {
-          method: "POST",
-          body: JSON.stringify({ avaliacoes: pagina.avaliacoes }),
-        });
-        lidas += r.recebidas;
-        novas += r.novas;
-      }
-      if (!pagina.temProxima || paginas >= MAX_PAGINAS) break;
-      await dormir(PAUSA_ENTRE_PAGINAS_MS + Math.random() * 1500);
-      const prox = await mandar(tab.id, { tipo: "proxima" });
-      if (!prox || !prox.ok) break;
-    }
-    if (novas) await dormir(ESPERA_ANALISE_MS); // tempo para a IA analisar as novas
+    const lidas = await lerPaginas(api, tab.id, "/api/extensao/avaliacoes");
+    if (lidas.erro) return registrar(lidas.erro, false);
+    if (lidas.novas) await dormir(ESPERA_ANALISE_MS); // tempo para a IA analisar as novas
 
     const { envios } = await api("/api/extensao/envios");
     let publicadas = 0;
@@ -144,9 +168,17 @@ async function ciclo() {
       r.ok ? publicadas++ : falhas++;
       await dormir(PAUSA_ENTRE_ENVIOS_MS);
     }
+
+    let historico = "";
+    try {
+      const h = await lerHistorico(api, forcarHistorico);
+      if (h) historico = h.erro ? ` Histórico: ${h.erro}` : ` Histórico (já respondidas 1–4★): ${h.novas} novas.`;
+    } catch (e) {
+      historico = ` Histórico: erro ${e.message}`;
+    }
     return registrar(
-      `${lidas} lidas em ${paginas} página(s), ${novas} novas, ${publicadas} publicadas` +
-        (falhas ? `, ${falhas} com falha (veja o painel)` : ""),
+      `${lidas.lidas} lidas em ${lidas.paginas} página(s), ${lidas.novas} novas, ${publicadas} publicadas` +
+        (falhas ? `, ${falhas} com falha (veja o painel)` : "") + "." + historico,
       falhas === 0
     );
   } catch (e) {

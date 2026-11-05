@@ -7,6 +7,7 @@
       {% set nome, classe = categorias.get(r.categoria, (r.categoria, "")) %}
       <span class="pilula mono {{ classe }}">{{ nome }}</span>
     {% endif %}
+    {% if r.status == "ja_respondida" %}<span class="pilula mono">Respondida antes</span>{% endif %}
     <span class="mono muted rel-item__data">{{ (r.avaliado_em or r.criado_em)|data_hora }}</span>
   </div>
   <p class="rel-item__produto">{{ r.produto_nome }}{% if r.pedido %} <span class="mono muted">· pedido {{ r.pedido }}</span>{% endif %}</p>
@@ -14,5 +15,8 @@
     <blockquote class="avaliacao">{{ r.texto }}</blockquote>
   {% else %}
     <p class="avaliacao sem-texto">Sem texto{% if r.midias %} · {{ r.midias|length }} mídia(s){% endif %}</p>
+  {% endif %}
+  {% if r.resposta_vendedor %}
+    <p class="rel-item__resposta"><span class="mono muted">Sua resposta</span>{{ r.resposta_vendedor }}</p>
   {% endif %}
 </li>

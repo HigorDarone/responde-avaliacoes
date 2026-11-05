@@ -116,6 +116,7 @@ class AvaliacaoLida(BaseModel):
     midias: list[Midia] = Field(default_factory=list, max_length=20)
     comprador: str = Field(default="", max_length=200)
     data: str = Field(default="", max_length=20)  # como aparece na página: "03/11/2026 10:55"
+    resposta_vendedor: str = Field(default="", max_length=1000)  # só nas já respondidas
 
     def avaliado_em(self) -> datetime | None:
         try:
@@ -134,25 +135,23 @@ def status(loja: Shop = Depends(loja_da_extensao)):
             "max_envios_por_passada": MAX_ENVIOS_POR_PASSADA}
 
 
-@router.post("/avaliacoes")
-def receber_avaliacoes(
-    lote: LoteAvaliacoes,
-    tarefas: BackgroundTasks,
-    loja: Shop = Depends(loja_da_extensao),
-    db: Session = Depends(get_db),
-    processar=Depends(get_processador),
-):
+def _salvar_novas(db: Session, loja: Shop, lote: LoteAvaliacoes, status: ReviewStatus) -> int:
+    """Salva as avaliações ainda não vistas (idempotente por pedido + produto)."""
     produtos = {
         p.nome.strip().lower(): p.item_id
         for p in db.scalars(select(ProductInfo).where(ProductInfo.shop_id == loja.id))
     }
     ids = {comment_id_da_extensao(a.pedido, a.produto): a for a in lote.avaliacoes}
-    existentes = set(db.scalars(
-        select(Review.comment_id).where(Review.shop_id == loja.id, Review.comment_id.in_(list(ids)))
-    ))
+    existentes = {
+        r.comment_id: r
+        for r in db.scalars(select(Review).where(Review.shop_id == loja.id, Review.comment_id.in_(list(ids))))
+    }
     novas = 0
     for comment_id, a in ids.items():
         if comment_id in existentes:
+            atual = existentes[comment_id]
+            if a.resposta_vendedor.strip() and not atual.resposta_vendedor:
+                atual.resposta_vendedor = a.resposta_vendedor.strip()
             continue
         db.add(Review(
             shop_id=loja.id,
@@ -165,10 +164,29 @@ def receber_avaliacoes(
             midias=[m.model_dump() for m in a.midias],
             comprador=a.comprador.strip(),
             avaliado_em=a.avaliado_em(),
-            status=ReviewStatus.NOVA,
+            resposta_vendedor=a.resposta_vendedor.strip() or None,
+            status=status,
         ))
         novas += 1
     db.commit()
+    return novas
+
+
+@router.post("/historico")
+def receber_historico(lote: LoteAvaliacoes, loja: Shop = Depends(loja_da_extensao), db: Session = Depends(get_db)):
+    """Avaliações da lista "Respondido": só entram no relatório. Sem IA, sem fila, sem envio."""
+    return {"recebidas": len(lote.avaliacoes), "novas": _salvar_novas(db, loja, lote, ReviewStatus.JA_RESPONDIDA)}
+
+
+@router.post("/avaliacoes")
+def receber_avaliacoes(
+    lote: LoteAvaliacoes,
+    tarefas: BackgroundTasks,
+    loja: Shop = Depends(loja_da_extensao),
+    db: Session = Depends(get_db),
+    processar=Depends(get_processador),
+):
+    novas = _salvar_novas(db, loja, lote, ReviewStatus.NOVA)
     # Analisa as novas e também o que ficou pendente (falha de rede antes, lote da Batch API).
     pendentes = db.scalar(select(Review.id).where(
         Review.shop_id == loja.id, Review.status.in_([ReviewStatus.NOVA, ReviewStatus.EM_ANALISE])
