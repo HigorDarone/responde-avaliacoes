@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block titulo %}Relatório · Responde Avaliações{% endblock %}
+
+{% macro estrelas(n) -%}
+  <span class="estrelas" aria-label="{{ n }} de 5 estrelas">
+    {%- for i in range(5) -%}<span class="{{ '' if i < n else 'vazia' }}">★</span>{%- endfor -%}
+  </span>
+{%- endmacro %}
+
+{% block conteudo %}
+{% if not loja %}
+  <div class="vazio">
+    <span class="pilula mono">Nenhuma loja</span>
+    <h2>Ainda não há loja cadastrada</h2>
+  </div>
+{% else %}
+  <section class="titulo">
+    <div class="resumo">
+      <span class="pilula pilula--laranja mono">Relatório</span>
+      <span class="pilula mono">{{ loja.nome }}</span>
+    </div>
+    <h1>O que <span class="apagado">melhorar</span></h1>
+    <p>As avaliações de poucas estrelas agrupadas por motivo, para você ver onde estão os problemas que mais se repetem.</p>
+  </section>
+
+  <form class="rel-filtros" method="get" action="/relatorio" aria-label="Filtros do relatório">
+    <fieldset class="rel-filtro">
+      <legend class="mono muted">Estrelas</legend>
+      <div class="chips">
+        {% for e in [1, 2, 3, 4] %}
+          <label class="chip">
+            <input type="checkbox" name="estrelas" value="{{ e }}" {% if e in filtro.estrelas %}checked{% endif %} onchange="this.form.requestSubmit()">
+            <span>{{ e }} ★</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <fieldset class="rel-filtro">
+      <legend class="mono muted">Período</legend>
+      <div class="chips">
+        {% for d, nome in periodos.items() %}
+          <label class="chip">
+            <input type="radio" name="dias" value="{{ d }}" {% if d == filtro.dias %}checked{% endif %} onchange="this.form.requestSubmit()">
+            <span>{{ nome }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <label class="rel-filtro rel-filtro--produto">
+      <span class="mono muted">Produto</span>
+      <select name="produto" onchange="this.form.requestSubmit()">
+        <option value="">Todos os produtos</option>
+        {% for p in produtos %}
+          <option value="{{ p }}" {% if p == filtro.produto %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button class="btn btn--contorno" type="submit">Filtrar</button></noscript>
+  </form>
+
+  {% if not reviews %}
+    <div class="vazio">
+      <span class="pilula pilula--ok mono">Nada aqui</span>
+      <h2>Nenhuma avaliação com esses filtros</h2>
+      <p>Experimente incluir mais estrelas ou um período maior. O relatório usa as avaliações que a extensão já leu.</p>
+    </div>
+  {% else %}
+    <div class="numeros">
+      <div class="numero">
+        <span class="mono muted">Avaliações</span>
+        <strong>{{ resumo.total }}</strong>
+        <span class="muted">{{ resumo.com_texto }} com texto</span>
+      </div>
+      {% for e in [1, 2, 3, 4] %}
+        <div class="numero {% if e not in filtro.estrelas %}numero--fora{% endif %}">
+          <span class="mono muted">{{ e }} estrela{{ 's' if e > 1 }}</span>
+          <strong>{{ resumo.por_estrela[e] }}</strong>
+          {{ estrelas(e) }}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="rel-grade">
+      <section class="bloco">
+        <div class="bloco__topo"><h2>Motivos</h2></div>
+        <p class="bloco__ajuda">Pela classificação que a IA fez de cada avaliação ao responder.</p>
+        <ul class="barras">
+          {% for cat, n in resumo.por_categoria %}
+            {% set nome, classe = categorias.get(cat, ("Ainda não analisada", "")) %}
+            <li class="barra">
+              <span class="barra__nome">{{ nome }}</span>
+              <span class="barra__trilho"><span class="barra__valor barra__valor--{{ cat }}" style="width: {{ (n / resumo.maior_categoria * 100)|round(1) }}%"></span></span>
+              <span class="barra__n">{{ n }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="bloco">
+        <div class="bloco__topo"><h2>Produtos</h2></div>
+        <p class="bloco__ajuda">Os que mais aparecem nessas avaliações.</p>
+        <ul class="barras">
+          {% for nome, n, cats in resumo.por_produto %}
+            <li class="barra">
+              <a class="barra__nome" href="/relatorio?{% for e in filtro.estrelas %}estrelas={{ e }}&{% endfor %}dias={{ filtro.dias }}&produto={{ nome|urlencode }}" title="Ver só este produto">{{ nome }}</a>
+              <span class="barra__trilho"><span class="barra__valor" style="width: {{ (n / resumo.maior_produto * 100)|round(1) }}%"></span></span>
+              <span class="barra__n">{{ n }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <section class="bloco rel-ia">
+      <div class="bloco__topo">
+        <h2>O que fazer</h2>
+        <span class="pilula pilula--azul mono">Análise com IA</span>
+      </div>
+      <p class="bloco__ajuda">
+        A IA lê as <strong>{{ para_ia }}</strong> avaliações com texto destes filtros, junta as que falam do mesmo
+        problema (ex.: "cor diferente da foto") e sugere o que mudar. Uma única chamada, custo de centavos.
+      </p>
+      <div id="relatorio-ia">
+        {% include "partials/relatorio_ia.html" %}
+      </div>
+    </section>
+
+    <details class="bloco rel-lista">
+      <summary>
+        <h2>Todas as avaliações</h2>
+        <span class="pilula mono">{{ reviews|length }}</span>
+      </summary>
+      <ul class="rel-avaliacoes">
+        {% for r in reviews %}
+          {% include "partials/relatorio_item.html" %}
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+{% endif %}
+{% endblock %}

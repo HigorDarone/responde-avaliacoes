@@ -1,0 +1,52 @@
+{% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+
+{% if salvo %}
+  {% set res = salvo.resultado %}
+  {% if res.resumo %}<p class="rel-resumo">{{ res.resumo }}</p>{% endif %}
+  {% if res.temas %}
+    <ol class="temas">
+      {% for t in res.temas %}
+        {% set pnome, pclasse = prioridades.get(t.prioridade, (t.prioridade, "")) %}
+        <li class="tema">
+          <div class="tema__topo">
+            <span class="tema__n" aria-label="{{ t.avaliacoes|length }} avaliações">{{ t.avaliacoes|length }}</span>
+            <div>
+              <h3 class="tema__titulo">{{ t.titulo }}</h3>
+              <span class="pilula mono {{ pclasse }}">{{ pnome }}</span>
+            </div>
+          </div>
+          <p class="tema__descricao">{{ t.descricao }}</p>
+          <p class="tema__sugestao"><span class="mono">O que fazer</span>{{ t.sugestao }}</p>
+          {% set itens_tema = t.avaliacoes|map("int")|select("in", por_id)|list %}
+          {% if itens_tema %}
+            <details class="tema__avaliacoes">
+              <summary class="mono">Ver {{ itens_tema|length }} {{ 'avaliações' if itens_tema|length > 1 else 'avaliação' }}</summary>
+              <ul class="rel-avaliacoes">
+                {% for rid in itens_tema %}{% set r = por_id[rid] %}{% include "partials/relatorio_item.html" %}{% endfor %}
+              </ul>
+            </details>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="muted">A IA não encontrou temas de reclamação nessas avaliações.</p>
+  {% endif %}
+  <div class="rel-ia__rodape">
+    <p class="mono muted">
+      Gerado em {{ salvo.criado_em|data_hora }} · {{ salvo.total_avaliacoes }} avaliações lidas ·
+      US$ {{ "%.4f"|format(salvo.custo_estimado_usd) }}
+    </p>
+    <button class="btn btn--contorno" hx-post="/relatorio/gerar?{{ request.url.query }}" hx-target="#relatorio-ia"
+            hx-disabled-elt="this">Gerar de novo</button>
+  </div>
+{% else %}
+  <div class="rel-ia__vazio">
+    <button class="btn btn--primario" hx-post="/relatorio/gerar?{{ request.url.query }}" hx-target="#relatorio-ia"
+            hx-disabled-elt="this" {% if not para_ia %}disabled{% endif %}>
+      Gerar relatório com IA
+    </button>
+    <span class="muted rel-ia__carregando">Lendo as avaliações… leva uns 20 segundos.</span>
+    {% if not para_ia %}<span class="muted">Nenhuma avaliação com texto nesses filtros.</span>{% endif %}
+  </div>
+{% endif %}

@@ -245,6 +245,25 @@ class ProductInfo(Base):
     )
 
 
+class RelatorioMelhoria(Base):
+    """Relatório "O que melhorar": temas das reclamações agrupados pela IA, com sugestões."""
+
+    __tablename__ = "relatorios_melhoria"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id"), index=True)
+    # {"estrelas": [1, 2, 3], "dias": 90, "produto": ""}
+    filtros: Mapped[dict] = mapped_column(JSON, default=dict)
+    # {"resumo": "...", "temas": [{"titulo", "descricao", "sugestao", "prioridade", "avaliacoes": [ids]}]}
+    resultado: Mapped[dict] = mapped_column(JSON, default=dict)
+    total_avaliacoes: Mapped[int] = mapped_column(Integer, default=0)
+    modelo_usado: Mapped[str | None] = mapped_column(String(100))
+    tokens_entrada: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_saida: Mapped[int] = mapped_column(Integer, default=0)
+    custo_estimado_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora)
+
+
 class AuditLog(Base):
     """Histórico de ações: quem ligou/desligou a chave, quem publicou o quê."""
 

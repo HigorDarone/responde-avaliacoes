@@ -1,0 +1,18 @@
+<li class="rel-item" id="avaliacao-{{ r.id }}">
+  <div class="rel-item__topo">
+    <span class="estrelas" aria-label="{{ r.estrelas }} de 5 estrelas">
+      {%- for i in range(5) -%}<span class="{{ '' if i < r.estrelas else 'vazia' }}">★</span>{%- endfor -%}
+    </span>
+    {% if r.categoria %}
+      {% set nome, classe = categorias.get(r.categoria, (r.categoria, "")) %}
+      <span class="pilula mono {{ classe }}">{{ nome }}</span>
+    {% endif %}
+    <span class="mono muted rel-item__data">{{ (r.avaliado_em or r.criado_em)|data_hora }}</span>
+  </div>
+  <p class="rel-item__produto">{{ r.produto_nome }}{% if r.pedido %} <span class="mono muted">· pedido {{ r.pedido }}</span>{% endif %}</p>
+  {% if (r.texto or "").strip() %}
+    <blockquote class="avaliacao">{{ r.texto }}</blockquote>
+  {% else %}
+    <p class="avaliacao sem-texto">Sem texto{% if r.midias %} · {{ r.midias|length }} mídia(s){% endif %}</p>
+  {% endif %}
+</li>

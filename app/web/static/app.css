@@ -606,6 +606,157 @@ details.novo summary .mono {
 .faltando__nome { font-size: 16px; }
 .faltando__lista .mono { font-size: 10px; }
 
+/* ---------- Relatório ---------- */
+
+.rel-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  align-items: flex-end;
+  margin-bottom: 28px;
+}
+.rel-filtro { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.rel-filtro legend { padding: 0; margin-bottom: 8px; }
+.rel-filtro--produto { flex: 1 1 240px; max-width: 420px; }
+.rel-filtro select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 15px;
+  color: inherit;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { position: relative; cursor: pointer; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip span {
+  display: inline-block;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 15px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.chip:hover span { border-color: var(--oat); }
+.chip input:checked + span { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.chip input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.numero {
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+.numero strong { font-size: 40px; font-weight: 500; letter-spacing: -0.03em; line-height: 1; }
+.numero .estrelas { font-size: 13px; }
+.numero--fora { opacity: 0.45; }
+
+.rel-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.barra {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(60px, 1fr) 2.5ch;
+  gap: 12px;
+  align-items: center;
+  font-size: 15px;
+}
+.barra__nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.barra__nome { text-decoration: none; }
+a.barra__nome:hover { text-decoration: underline; color: var(--primary); }
+.barra__trilho { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.barra__valor { display: block; height: 100%; min-width: 4px; border-radius: 999px; background: var(--primary); }
+.barra__valor--defeito,
+.barra__valor--quebrado_no_envio { background: #c2412d; }
+.barra__valor--atraso { background: #b59a1c; }
+.barra__valor--produto_diferente { background: var(--accent); }
+.barra__valor--elogio { background: #3e8a35; }
+.barra__valor--sem_analise { background: var(--oat); }
+.barra__n { text-align: right; font-variant-numeric: tabular-nums; }
+
+.rel-ia { margin-bottom: 20px; }
+.rel-resumo {
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  font-size: 17px;
+  line-height: 1.45;
+}
+.rel-ia__vazio { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.rel-ia__carregando { display: none; }
+.btn.htmx-request + .rel-ia__carregando { display: inline; }
+.rel-ia__rodape { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.rel-ia__rodape p { margin: 0; font-size: 11px; }
+
+.temas { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.tema {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+}
+.tema__topo { display: flex; gap: 14px; align-items: flex-start; }
+.tema__topo > div { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.tema__n {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 20px;
+}
+.tema__titulo { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; }
+.tema__descricao { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
+.tema__sugestao {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--ok);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--ok-bg) 45%, var(--surface));
+  font-size: 15px;
+  line-height: 1.45;
+}
+.tema__sugestao .mono { color: var(--ok); font-size: 10px; }
+.tema__avaliacoes summary { cursor: pointer; color: var(--primary); width: fit-content; }
+.tema__avaliacoes .rel-avaliacoes { margin-top: 12px; }
+
+.rel-lista { padding: 0; gap: 0; }
+.rel-lista summary { display: flex; align-items: center; gap: 12px; padding: 22px 28px; cursor: pointer; }
+.rel-lista summary h2 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -0.02em; }
+.rel-lista .rel-avaliacoes { padding: 0 28px 28px; }
+
+.rel-avaliacoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rel-item { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.rel-item__topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rel-item__data { margin-left: auto; font-size: 10px; }
+.rel-item__produto { margin: 0; font-size: 14px; color: var(--muted); }
+.rel-item .avaliacao { font-size: 15px; }
+
 @media (max-width: 960px) {
   .regras { grid-template-columns: 1fr; }
   .regras__lado { position: static; }
@@ -635,4 +786,11 @@ details.novo summary .mono {
   .card { padding: 18px; }
   .card__acoes .btn { flex: 1 1 auto; }
   .card__acoes .btn--primario { flex-basis: 100%; margin-right: 0; }
+  .numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .numero:first-child { grid-column: 1 / -1; }
+  .numero strong { font-size: 32px; }
+  .rel-filtro--produto { max-width: none; }
+  .rel-lista summary { padding: 18px 20px; }
+  .rel-lista .rel-avaliacoes { padding: 0 20px 20px; }
+  .tema { padding: 16px; }
 }
