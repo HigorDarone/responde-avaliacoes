@@ -15,7 +15,9 @@ import threading
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, BeforeValidator, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -107,16 +109,22 @@ class Midia(BaseModel):
     url: str = Field(max_length=1000)
 
 
+def _cortado(limite: int):
+    """Texto que passa do limite é cortado, não recusado: um anúncio com dezenas de variações
+    não pode derrubar a página inteira de avaliações."""
+    return BeforeValidator(lambda v: v.strip()[:limite] if isinstance(v, str) else v)
+
+
 class AvaliacaoLida(BaseModel):
-    pedido: str = Field(min_length=1, max_length=40)
-    produto: str = Field(min_length=1, max_length=300)
-    variacao: str = Field(default="", max_length=500)
+    pedido: Annotated[str, _cortado(40)] = Field(min_length=1)
+    produto: Annotated[str, _cortado(300)] = Field(min_length=1)
+    variacao: Annotated[str, _cortado(500)] = ""
     estrelas: int = Field(ge=1, le=5)
-    texto: str = Field(default="", max_length=3000)
+    texto: Annotated[str, _cortado(3000)] = ""
     midias: list[Midia] = Field(default_factory=list, max_length=20)
-    comprador: str = Field(default="", max_length=200)
-    data: str = Field(default="", max_length=20)  # como aparece na página: "03/11/2026 10:55"
-    resposta_vendedor: str = Field(default="", max_length=1000)  # só nas já respondidas
+    comprador: Annotated[str, _cortado(200)] = ""
+    data: Annotated[str, _cortado(20)] = ""  # como aparece na página: "03/11/2026 10:55"
+    resposta_vendedor: Annotated[str, _cortado(1000)] = ""  # só nas já respondidas
 
     def avaliado_em(self) -> datetime | None:
         try:

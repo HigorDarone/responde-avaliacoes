@@ -129,6 +129,16 @@ def test_historico_nao_mexe_em_avaliacao_ja_conhecida(client, session, loja):
     assert review.status == ReviewStatus.NOVA and review.resposta_vendedor == "Resposta feita na Shopee"
 
 
+def test_textos_longos_sao_cortados_nao_recusados(client, session):
+    longa = "4 Vasos + frase Gratidao,Branco|" * 40  # anúncio com muitas variações
+    r = client.post("/api/extensao/historico", json={"avaliacoes": [
+        _avaliacao(variacao=longa, produto="P" * 400, texto="x" * 5000, resposta_vendedor="r" * 2000),
+    ]})
+    assert r.status_code == 200 and r.json()["novas"] == 1
+    review = session.scalar(select(Review))
+    assert len(review.produto_nome) == 300 and len(review.texto) == 3000 and len(review.resposta_vendedor) == 1000
+
+
 # --- Decisão no modo extensão ---
 
 
