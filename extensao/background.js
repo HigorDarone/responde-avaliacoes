@@ -18,7 +18,15 @@ const ESPERA_ANALISE_MS = 45000;
 const PAUSA_ENTRE_PAGINAS_MS = 1500; // + até 1,5 s aleatório, no ritmo de uma pessoa
 const MAX_PAGINAS = 50; // até 1.000 avaliações por passada
 
-const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+// O Chrome desliga o background da extensão após ~30 s sem atividade, mesmo no meio de uma espera.
+// Uma chamada leve à API a cada 20 s o mantém acordado durante as pausas longas.
+async function dormir(ms) {
+  const fim = Date.now() + ms;
+  while (Date.now() < fim) {
+    await new Promise((r) => setTimeout(r, Math.min(20000, fim - Date.now())));
+    if (Date.now() < fim) await chrome.runtime.getPlatformInfo();
+  }
+}
 let rodando = false;
 
 async function config() {
@@ -144,7 +152,7 @@ async function ciclo(forcarHistorico = false) {
     if (!cfg.chave) return registrar("Falta a chave da extensão (abra as opções).", false);
     if (!cfg.ativo) return registrar("Extensão pausada nas opções.", false);
     const api = clienteDoPainel(cfg);
-    await api("/api/extensao/status");
+    await api(`/api/extensao/status?v=${chrome.runtime.getManifest().version}`); // versão aparece no log do painel
 
     const tab = await abaDoSellerCenter();
     if (!tab.url || !tab.url.startsWith("https://seller.shopee.com.br/")) {

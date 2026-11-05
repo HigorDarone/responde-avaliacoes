@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Responde Avaliações",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Lê as avaliações do Seller Center da Shopee, gera respostas com IA no painel Responde Avaliações e publica as aprovadas.",
   "permissions": ["alarms", "storage", "tabs", "scripting"],
   "host_permissions": [

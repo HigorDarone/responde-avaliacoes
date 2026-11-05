@@ -7,6 +7,8 @@ function mostrar(registro) {
   ultima.className = registro.ok ? "" : "erro";
 }
 
+document.getElementById("versao").textContent = "v" + chrome.runtime.getManifest().version;
+
 chrome.storage.local.get("ultimaPassada").then(({ ultimaPassada }) => mostrar(ultimaPassada));
 
 botao.addEventListener("click", async () => {
