@@ -11,7 +11,7 @@ from pathlib import Path
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -168,11 +168,18 @@ def _exemplos_salvos(db: Session, loja: Shop | None) -> set[tuple[str, str]]:
     )
 
 
+def _eh_simples(review: Review) -> bool:
+    """5★ sem texto e sem mídia: recebeu resposta pronta da loja, sem IA."""
+    return (review.estrelas == 5 and not (review.texto or "").strip() and not review.midias
+            and not review.precisa_revisao)
+
+
 def _contexto_resumo(db: Session, loja: Shop | None) -> dict:
     itens = _pendentes(db, loja)
     return {
         "itens": itens,
         "revisao": sum(1 for r, _ in itens if r.precisa_revisao),
+        "simples": sum(1 for r, _ in itens if _eh_simples(r)),
         "exemplos_salvos": _exemplos_salvos(db, loja),
     }
 
@@ -375,6 +382,56 @@ def aprovar(
                               "editada": draft.editado}))
     db.commit()
     return _card(request, db, loja, review, draft)
+
+
+@router.post("/fila/aprovar-simples")
+def aprovar_simples(
+    request: Request,
+    db: Session = Depends(get_db),
+    loja: Shop | None = Depends(loja_atual),
+    shopee: ShopeeClient = Depends(get_shopee),
+    settings: Settings = Depends(get_config),
+):
+    """Aprova de uma vez as 5★ sem texto e sem mídia (resposta pronta, sem IA).
+
+    Cada uma segue o mesmo caminho do "Aprovar e publicar": no modo extensão vai para a fila
+    de envio; com a API, publica na hora (as que falharem continuam na fila).
+    """
+    aprovadas, falhas = 0, 0
+    for review, draft in _pendentes(db, loja):
+        if not _eh_simples(review):
+            continue
+        texto = (draft.texto_final or draft.texto_ia).strip()
+        if _erro_no_texto(texto):
+            continue
+        if settings.use_extensao:
+            _guardar_texto(draft, texto)
+            enfileirar_envio(review, draft, texto, PublicadoPor.HUMANO, AUTOR_PAINEL)
+        else:
+            try:
+                shopee.reply_comment(loja.shopee_shop_id, review.comment_id, texto)
+            except ShopeeError as e:
+                falhas += 1
+                db.add(AuditLog(shop_id=loja.id, acao="falha_publicacao", autor=AUTOR_PAINEL,
+                                detalhes={"review_id": review.id, "erro": str(e), "em_massa": True}))
+                db.commit()
+                continue
+            _guardar_texto(draft, texto)
+            draft.status = DraftStatus.PUBLICADO
+            draft.publicado_por = PublicadoPor.HUMANO
+            draft.publicado_por_usuario = AUTOR_PAINEL
+            draft.publicado_em = datetime.now(UTC)
+            review.status = ReviewStatus.PUBLICADA
+        aprovadas += 1
+        db.commit()  # uma por vez: se algo cair no meio, o que já foi fica registrado
+    if loja is not None and (aprovadas or falhas):
+        db.add(AuditLog(shop_id=loja.id, acao="aprovacao_em_massa", autor=AUTOR_PAINEL,
+                        detalhes={"tipo": "5_estrelas_sem_texto", "aprovadas": aprovadas, "falhas": falhas,
+                                  "via": "extensao" if settings.use_extensao else "api"}))
+        db.commit()
+    if request.headers.get("HX-Request"):
+        return Response(status_code=200, headers={"HX-Refresh": "true"})
+    return RedirectResponse("/fila", status_code=303)
 
 
 @router.post("/fila/{review_id}/descartar")

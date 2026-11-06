@@ -28,7 +28,7 @@ from app.web.routes import BRASILIA, get_config, get_db
 
 log = logging.getLogger("extensao")
 router = APIRouter(prefix="/api/extensao")
-MAX_ENVIOS_POR_PASSADA = 5
+MAX_ENVIOS_POR_PASSADA = 15  # 12 s entre envios: ~3 min por passada
 
 
 def gerar_chave() -> str:

@@ -4,6 +4,17 @@
     <h1>{{ itens | length }} {{ 'resposta' if itens | length == 1 else 'respostas' }}<br><span class="apagado">esperando você</span></h1>
     <p>Confira a resposta sugerida, ajuste se quiser e publique.
       {% if revisao %}<strong>{{ revisao }}</strong> {{ 'precisa' if revisao == 1 else 'precisam' }} da sua atenção e {{ 'aparece' if revisao == 1 else 'aparecem' }} primeiro.{% endif %}</p>
+    {% if simples %}
+      <form class="em-massa" method="post" action="/fila/aprovar-simples"
+            hx-post="/fila/aprovar-simples" hx-disabled-elt="find button"
+            hx-confirm="Aprovar e publicar as respostas prontas de {{ simples }} {{ 'avaliação' if simples == 1 else 'avaliações' }} 5★ sem texto?">
+        <div class="em-massa__texto">
+          <span class="estrelas" aria-hidden="true">★★★★★</span>
+          <span><strong>{{ simples }}</strong> {{ 'avaliação' if simples == 1 else 'avaliações' }} 5★ sem texto, com resposta pronta</span>
+        </div>
+        <button class="btn btn--primario" type="submit">Aprovar {{ 'a' if simples == 1 else 'as' }} {{ simples }}</button>
+      </form>
+    {% endif %}
   {% else %}
     <h1>Fila vazia<br><span class="apagado">tudo respondido</span></h1>
   {% endif %}

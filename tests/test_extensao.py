@@ -63,7 +63,7 @@ def test_sem_chave_ou_chave_errada(client):
 
 def test_status(client):
     r = client.get("/api/extensao/status").json()
-    assert r == {"loja": "Minha loja", "auto_publicar": False, "max_envios_por_passada": 5}
+    assert r == {"loja": "Minha loja", "auto_publicar": False, "max_envios_por_passada": 15}
 
 
 # --- Receber avaliações ---

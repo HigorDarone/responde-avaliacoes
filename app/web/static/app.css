@@ -606,6 +606,24 @@ details.novo summary .mono {
 .faltando__nome { font-size: 16px; }
 .faltando__lista .mono { font-size: 10px; }
 
+.em-massa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 720px;
+  margin-top: 4px;
+  padding: 14px 14px 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.em-massa__texto { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 15px; }
+.em-massa__texto .estrelas { font-size: 13px; }
+.em-massa .btn { flex-shrink: 0; }
+.em-massa .btn.htmx-request, .em-massa .btn[disabled] { opacity: 0.55; cursor: progress; }
+
 /* ---------- Relatório ---------- */
 
 .rel-filtros {
@@ -798,6 +816,8 @@ a.barra__nome:hover { text-decoration: underline; color: var(--primary); }
   .card { padding: 18px; }
   .card__acoes .btn { flex: 1 1 auto; }
   .card__acoes .btn--primario { flex-basis: 100%; margin-right: 0; }
+  .em-massa { padding: 14px; }
+  .em-massa .btn { flex: 1 1 100%; }
   .numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .numero:first-child { grid-column: 1 / -1; }
   .numero strong { font-size: 32px; }
